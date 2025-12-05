@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DataWash-CSV Dashboard</title>
+<!-- TANDREMO: TSY MAINTSY MIVOAKA TSARA ITY SCRIPT ITY AMIN'NY BROWSER -->
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <style>
@@ -23,7 +24,7 @@
         position: sticky;
         top: 0;
         z-index: 10;
-        cursor: pointer;
+        cursor: default; /* Keep default cursor for sorting */
     }
     .data-table tr:hover {
         background-color: #374151; /* gray-700 on hover */
@@ -493,7 +494,9 @@
         if (file && file.name.endsWith('.csv')) {
             handleFile(file);
         } else {
-            alert("Please drop a valid CSV file.");
+            // Replaced alert() with console log/status update as per rules
+            setStatus("Please drop a valid CSV file.", false);
+            setTimeout(hideStatus, 3000);
         }
     });
 
