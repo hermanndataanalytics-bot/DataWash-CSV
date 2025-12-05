@@ -1,20 +1,44 @@
-const express = require("express");
-const path = require("path");
+import express from "express";
+import multer from "multer";
+import fs from "fs";
+import path from "path";
+import csv from "csvtojson";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
-
-// ===== FRONTEND (UI) =====
 app.use(express.static(path.join(__dirname, "client")));
+
+// Upload CSV
+const upload = multer({ dest: "uploads/" });
+
+// 🟢 HOME UI
 app.get("/", (req, res) => {
-    res.sendFile(path.join(__dirname, "client/index.html"));
+  res.sendFile(path.join(__dirname, "client/index.html"));
 });
 
-// ===== BACKEND API ENDPOINTS =====
-app.use(express.json());
+// 🟢 CSV CLEAN ENDPOINT
+app.post("/api/clean", upload.single("file"), async (req, res) => {
+  try {
+    const filePath = req.file.path;
+    const jsonData = await csv().fromFile(filePath);
 
-app.post("/api/clean", (req, res) => {
-    res.json({ message: "CSV Processed Successfully" });
+    // CLEANING LOGIC basic: remove empty rows
+    const cleaned = jsonData.filter(row =>
+      Object.values(row).some(v => v.trim() !== "")
+    );
+
+    const output = "cleaned.csv";
+    fs.writeFileSync(output, cleaned.map(r => Object.values(r).join(",")).join("\n"));
+
+    res.download(output, "cleaned_file.csv");
+  } catch (err) {
+    res.status(500).send("Error cleaning file");
+  }
 });
 
-// === PORT Render ===
+// Render use port $PORT
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`🔥 Server running on port ${PORT}`));
+app.listen(PORT, () => console.log("CSV API running:", PORT));
