@@ -1,35 +1,102 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<title>DataWash CSV — Premium</title>
+<meta charset="UTF-8">
+<title>DataWash-CSV Dashboard</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<script defer src="app.js"></script>
 </head>
 
-<body class="bg-gray-900 text-white flex flex-col items-center min-h-screen">
+<body class="bg-gray-900 text-white">
 
-<h1 class="text-4xl font-bold mt-10 mb-6">🚀 DataWash CSV — Auto Cleaning Engine</h1>
-
-<!-- UPLOAD CARD -->
-<div class="bg-gray-800 p-6 rounded-xl shadow-lg w-3/4 text-center">
-    <input type="file" id="csv" class="mb-3 bg-gray-700 p-2 rounded"/>
-    <button onclick="uploadCSV()" 
-        class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded font-bold">
-        Clean File
+<!-- HEADER -->
+<header class="p-5 flex justify-between items-center border-b border-gray-700">
+    <h1 class="text-2xl font-bold text-cyan-400">⚡ DataWash-CSV™</h1>
+    <button onclick="downloadExcel()" class="bg-cyan-600 px-4 py-2 rounded hover:bg-cyan-500 transition">
+        ⬇ Export Excel
     </button>
+</header>
+
+<!-- MAIN DASHBOARD -->
+<div class="grid grid-cols-4 gap-4 p-6">
+
+    <!-- 📌 LEFT PANEL UPLOAD -->
+    <div class="col-span-1 bg-gray-800 p-4 rounded-lg border border-gray-700">
+        <h2 class="text-lg mb-3 font-semibold">Upload CSV</h2>
+
+        <div id="dropzone" 
+            class="border-2 border-dashed border-gray-500 rounded-lg p-8 text-center cursor-pointer hover:bg-gray-700">
+            Drag & Drop CSV Here
+        </div>
+        <input type="file" id="fileInput" accept=".csv" class="hidden">
+    </div>
+
+    <!-- 📊 KPI CARDS -->
+    <div class="col-span-3 grid grid-cols-3 gap-4">
+
+        <div class="p-5 bg-gray-800 rounded border border-gray-700 text-center">
+            <h3 class="text-gray-400 text-sm">ROWS</h3>
+            <p id="kpi_rows" class="text-3xl font-bold">-</p>
+        </div>
+
+        <div class="p-5 bg-gray-800 rounded border border-gray-700 text-center">
+            <h3 class="text-gray-400 text-sm">COLUMNS</h3>
+            <p id="kpi_cols" class="text-3xl font-bold">-</p>
+        </div>
+
+        <div class="p-5 bg-gray-800 rounded border border-gray-700 text-center">
+            <h3 class="text-gray-400 text-sm">% MISSING</h3>
+            <p id="kpi_missing" class="text-3xl font-bold text-yellow-400">-</p>
+        </div>
+    </div>
+</div>
+<!-- 🔍 FILTER / AI TOOLKIT -->
+<div class="col-span-4 p-6 bg-gray-800 border border-gray-700 rounded-lg mt-2">
+
+    <div class="flex gap-4 mb-4">
+        <select id="columnSelect" class="bg-gray-900 p-2 rounded border border-gray-700 text-sm"></select>
+        
+        <input id="searchInput" 
+            class="bg-gray-900 p-2 rounded border border-gray-700 text-sm flex-1"
+            placeholder="Search value in selected column...">
+        
+        <button onclick="applyFilter()" 
+            class="bg-cyan-600 px-4 py-2 rounded hover:bg-cyan-500">
+            🔍 Filter
+        </button>
+
+        <button onclick="resetFilter()" 
+            class="bg-red-600 px-4 py-2 rounded hover:bg-red-500">
+            ♻ Reset
+        </button>
+    </div>
+
+    <div class="flex gap-4">
+        <input id="replaceFrom" 
+            class="bg-gray-900 p-2 rounded border border-gray-700 text-sm"
+            placeholder="Find...">
+
+        <input id="replaceTo"
+            class="bg-gray-900 p-2 rounded border border-gray-700 text-sm"
+            placeholder="Replace with...">
+
+        <button onclick="replaceValues()" 
+            class="bg-yellow-500 px-4 py-2 rounded hover:bg-yellow-400">
+            🔄 Replace
+        </button>
+
+        <button onclick="AIrepair()" 
+            class="bg-purple-600 px-4 py-2 rounded hover:bg-purple-500">
+            🤖 AI REPAIR
+        </button>
+    </div>
+
 </div>
 
-<!-- KPI SECTION -->
-<div id="stats" class="hidden grid grid-cols-5 gap-4 mt-10 w-3/4"></div>
+<!-- TABLE PREVIEW -->
+<div class="p-6">
+    <table id="table" class="min-w-full bg-gray-800 rounded hidden"></table>
+</div>
 
-<!-- TABLE OUTPUT -->
-<div id="table" class="mt-10 w-3/4 max-h-96 overflow-y-scroll hidden bg-gray-800 p-4 rounded"></div>
-
-<!-- DOWNLOAD -->
-<button id="dl" onclick="downloadFile()" class="hidden bg-green-500 hover:bg-green-600 px-5 py-2 rounded mt-6">
-    📥 Download Cleaned Excel
-</button>
-
-<script src="app.js"></script>
 </body>
 </html>

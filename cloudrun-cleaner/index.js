@@ -1,72 +1,61 @@
-// ------------------------------
-// import express from "express";
-import multer from "multer";
-import csv from "csv-parser";
-import fs from "fs";
-import ExcelJS from "exceljs";
-import path from "path";
+const express = require("express");
+const cors = require("cors");
+const fileUpload = require("express-fileupload");
+const ExcelJS = require("exceljs");
 
 const app = express();
-const upload = multer({ dest: "uploads/" });
+app.use(cors({ origin: '*' }));
+app.use(express.json());
+app.use(fileUpload());
 
-function cleanRow(row){
-    let r = {};
-    for(let k in row){
-        let v = row[k].trim();
-        r[k] = v === "" ? null : v;
-    }
-    return r;
-}
-function removeEmpty(data){ return data.filter(r=>Object.values(r).some(v=>v)); }
-function removeDuplicates(data){
-    const seen = new Set();
-    return data.filter(r=>{
-        const key = JSON.stringify(r);
-        if(seen.has(key)) return false;
-        seen.add(key);
-        return true;
-    });
+/* 🔍 Auto-detect CSV delimiter */
+function detectSeparator(text) {
+    const possible = [",", ";", "\t", "|"];
+    return possible.reduce((best, sep) => 
+        (text.split(sep).length > text.split(best).length ? sep : best)
+    );
 }
 
-//======================== API CLEAN CSV ========================
-app.post("/clean", upload.single("file"), async(req,res)=>{
-    let raw = [];
-    fs.createReadStream(req.file.path)
-    .pipe(csv())
-    .on("data", r=> raw.push(cleanRow(r)))
-    .on("end", async()=>{
+/* 🧽 Cleaner Engine */
+function cleanCSV(data) {
+    const sep = detectSeparator(data);
+    const rows = data.split(/\r?\n/).map(r => r.split(sep).map(c => c.trim()));
 
-        const total = raw.length;
-        const noEmpty = removeEmpty(raw);
-        const cleaned = removeDuplicates(noEmpty);
-        const empty = total - noEmpty.length;
-        const duplicates = noEmpty.length - cleaned.length;
-        const quality = Math.round(((total - empty - duplicates)/ total)*100);
+    // Normalize header
+    rows[0] = rows[0].map(h => h.replace(/\s+/g, "_").toUpperCase());
 
-        //Export to Excel
-        let token = Date.now()+".xlsx";
-        const filePath = "exports/"+token;
-        const wb = new ExcelJS.Workbook();
-        const ws = wb.addWorksheet("CleanedData");
-        ws.columns = Object.keys(cleaned[0]).map(h=>({ header:h, key:h }));
-        cleaned.forEach(r=>ws.addRow(r));
-        await wb.xlsx.writeFile(filePath);
+    // Clean cells
+    let cleaned = rows.map(row => row.map(c => (c === "" ? "NULL" : c)));
+    return { cleaned, sep };
+}
 
-        res.json({
-            stats: { total, cleaned: cleaned.length, empty, duplicates, quality },
-            preview: cleaned.slice(0,20),
-            file: token
-        });
-    })
+/* ⬆ CSV Upload + Clean */
+app.post("/clean-csv", async (req, res) => {
+    if (!req.files || !req.files.file) return res.status(400).send("No file");
+    
+    const content = req.files.file.data.toString("utf8");
+    const { cleaned } = cleanCSV(content);
+
+    return res.json({ status: "success", cleaned });
 });
 
-//======================== DOWNLOAD ========================
-app.get("/download/:token",(req,res)=>{
-    res.download("exports/"+req.params.token);
+/* ⬇ CSV Export Excel */
+app.post("/export-excel", async (req, res) => {
+    const rows = req.body.rows;
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Cleaned CSV");
+
+    rows.forEach(r => sheet.addRow(r));
+    
+    res.setHeader("Content-Disposition", "attachment; filename=cleaned.xlsx");
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+
+    await workbook.xlsx.write(res);
+    res.end();
 });
 
-//======================== CLIENT UI ========================
+// Serve UI (client folder)
 app.use(express.static("client"));
 
-//======================== START ============================
-app.listen(3000,()=>console.log("🚀 Server running :3000"));
+const PORT = 3000;
+app.listen(PORT, () => console.log(`🚀 Running on http://localhost:${PORT}`));

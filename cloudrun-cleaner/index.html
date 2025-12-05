@@ -1,15 +1,60 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-   <title>DataWash-CSV</title>
+<meta charset="UTF-8">
+<title>DataWash-CSV Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script defer src="app.js"></script>
 </head>
-<body>
-   <h2> Upload CSV → Auto Clean </h2>
-   <input type="file" id="csv">
-   <button onclick="uploadCSV()">Clean File</button>
 
-   <pre id="output"></pre>
+<body class="bg-gray-900 text-white">
 
-   <script src="app.js"></script>
+<!-- HEADER -->
+<header class="p-5 flex justify-between items-center border-b border-gray-700">
+    <h1 class="text-2xl font-bold text-cyan-400">⚡ DataWash-CSV™</h1>
+    <button onclick="downloadExcel()" class="bg-cyan-600 px-4 py-2 rounded hover:bg-cyan-500 transition">
+        ⬇ Export Excel
+    </button>
+</header>
+
+<!-- MAIN DASHBOARD -->
+<div class="grid grid-cols-4 gap-4 p-6">
+
+    <!-- 📌 LEFT PANEL UPLOAD -->
+    <div class="col-span-1 bg-gray-800 p-4 rounded-lg border border-gray-700">
+        <h2 class="text-lg mb-3 font-semibold">Upload CSV</h2>
+
+        <div id="dropzone" 
+            class="border-2 border-dashed border-gray-500 rounded-lg p-8 text-center cursor-pointer hover:bg-gray-700">
+            Drag & Drop CSV Here
+        </div>
+        <input type="file" id="fileInput" accept=".csv" class="hidden">
+    </div>
+
+    <!-- 📊 KPI CARDS -->
+    <div class="col-span-3 grid grid-cols-3 gap-4">
+
+        <div class="p-5 bg-gray-800 rounded border border-gray-700 text-center">
+            <h3 class="text-gray-400 text-sm">ROWS</h3>
+            <p id="kpi_rows" class="text-3xl font-bold">-</p>
+        </div>
+
+        <div class="p-5 bg-gray-800 rounded border border-gray-700 text-center">
+            <h3 class="text-gray-400 text-sm">COLUMNS</h3>
+            <p id="kpi_cols" class="text-3xl font-bold">-</p>
+        </div>
+
+        <div class="p-5 bg-gray-800 rounded border border-gray-700 text-center">
+            <h3 class="text-gray-400 text-sm">% MISSING</h3>
+            <p id="kpi_missing" class="text-3xl font-bold text-yellow-400">-</p>
+        </div>
+    </div>
+</div>
+
+<!-- TABLE PREVIEW -->
+<div class="p-6">
+    <table id="table" class="min-w-full bg-gray-800 rounded hidden"></table>
+</div>
+
 </body>
 </html>
