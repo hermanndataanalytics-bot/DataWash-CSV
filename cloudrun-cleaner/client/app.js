@@ -1,10 +1,66 @@
-async function uploadCSV(){
-    let file = document.getElementById("csv").files[0];
+// =====================
+//  DataWash-CSV™ - Frontend
+//  app.js (Clean version)
+// =====================
+
+// 📌 Handle CSV Upload & Cleaning Process
+async function uploadCSV() {
+
+    const file = document.getElementById("csv").files[0];
+    if(!file){
+        alert("⚠ Select CSV first!");
+        return;
+    }
+
     let form = new FormData();
     form.append("file", file);
 
-    let res = await fetch("/clean", { method:"POST", body: form });
-    let data = await res.json();
+    // 🔥 Send to backend → receive cleaned Excel
+    const res = await fetch("/clean", {
+        method: "POST",
+        body: form
+    });
 
-    document.getElementById("output").innerText = JSON.stringify(data, null, 2);
+    const blob = await res.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+
+    // 📄 Auto download XLSX
+    const a = document.createElement("a");
+    a.href = downloadUrl;
+    a.download = "Cleaned_Data.xlsx";
+    a.click();
+
+    // Clean URL temp
+    window.URL.revokeObjectURL(downloadUrl);
 }
+
+
+
+// =============================
+//   📊 Get Cleaning Statistics
+// =============================
+async function getStats() {
+
+    const file = document.getElementById("csv").files[0];
+    if(!file){
+        alert("⚠ Please upload a file first!");
+        return;
+    }
+
+    let form = new FormData();
+    form.append("file", file);
+
+    const res = await fetch("/api/stats", {
+        method: "POST",
+        body: form
+    });
+
+    const stats = await res.json();
+
+    // Display results in the UI
+    document.getElementById("total").innerText      = stats.rows_total;
+    document.getElementById("empty").innerText      = stats.empty_rows;
+    document.getElementById("duplicates").innerText = stats.duplicates;
+    document.getElementById("score").innerText      = stats.quality_score+" %";
+}
+

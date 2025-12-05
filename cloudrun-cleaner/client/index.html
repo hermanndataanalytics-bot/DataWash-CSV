@@ -1,41 +1,15 @@
-<!DOCTYPE html>
-<html>
-<head>
-   <title>DataWash-CSV</title>
-</head>
-<body>
-   <h2> Upload CSV → Auto Clean </h2>
-   <input type="file" id="csv">
-   <button onclick="uploadCSV()">Clean File</button>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2/dist/tailwind.min.css" rel="stylesheet">
 
-   <pre id="output"></pre>
+<div class="p-10 text-center">
+  <h1 class="text-4xl font-bold mb-6 text-blue-600">DataWash-CSV ☁ Pro</h1>
 
-   <script src="app.js"></script>
-</body>
-</html>
-<form id="uploadForm" enctype="multipart/form-data">
-    <input type="file" name="file" accept=".csv">
-    <button>Clean File</button>
-</form>
+  <div class="bg-white shadow-xl rounded-xl p-6 max-w-xl mx-auto">
+      <input id="file" type="file" class="border p-2 mb-3 w-full">
+      <button onclick="uploadFile();" class="bg-blue-600 text-white px-4 py-2 rounded">Clean & Download XLSX</button>
+  </div>
 
-<script>
-document.getElementById("uploadForm").addEventListener("submit", async(e)=>{
-    e.preventDefault();
-    let file = document.querySelector("input[type=file]").files[0];
-    let form = new FormData();
-    form.append("file", file);
-
-    let res = await fetch("/api/clean", { method:"POST", body:form });
-
-    if(res.ok){
-        let blob = await res.blob();
-        let url = URL.createObjectURL(blob);
-        let a = document.createElement("a");
-        a.href = url;
-        a.download = "cleaned.csv";
-        a.click();
-    } else {
-        alert("Upload Failed");
-    }
-});
-</script>
+  <div id="stats" class="p-6 mt-6 hidden">
+     <h2 class="text-xl font-semibold mb-2">Data Report Summary</h2>
+     <canvas id="chart" width="300"></canvas>
+  </div>
+</div>
