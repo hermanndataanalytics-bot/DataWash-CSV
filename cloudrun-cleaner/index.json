@@ -1,0 +1,72 @@
+import express from "express";
+import multer from "multer";
+import fs from "fs";
+import cors from "cors";
+import csv from "csvtojson";
+import ExcelJS from "exceljs";
+
+const app = express();
+app.use(cors());
+app.use(express.static("client")); // Serve UI
+
+// Upload storage
+const upload = multer({ dest: "uploads/" });
+
+// Clean Function
+function cleanData(data) {
+  return data
+    .map(row => {
+      let newRow = {};
+      for (let k in row) {
+        newRow[k.trim()] = String(row[k]).trim();
+      }
+      return newRow;
+    })
+    .filter(r => Object.values(r).some(v => v !== "")) // remove empty rows
+}
+
+// 🟢 MAIN CLEAN ROUTE
+app.post("/clean", upload.single("file"), async (req, res) => {
+  try {
+    const filePath = req.file.path;
+    let jsonData = await csv().fromFile(filePath);
+
+    let cleaned = cleanData(jsonData);
+
+    // Stats
+    let total = jsonData.length;
+    let cleanedRows = cleaned.length;
+    let emptyRows = total - cleanedRows;
+    let score = Math.round((cleanedRows / total) * 100);
+
+    // Generate Excel
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Cleaned_Data");
+    sheet.columns = Object.keys(cleaned[0]).map(k => ({ header: k, key: k }));
+    cleaned.forEach(row => sheet.addRow(row));
+
+    let outFile = `cleaned_${Date.now()}.xlsx`;
+    await workbook.xlsx.writeFile(outFile);
+
+    res.json({
+      status: "success",
+      total,
+      cleaned: cleanedRows,
+      emptyRows,
+      score,
+      download: outFile,
+      preview: cleaned.slice(0, 10)
+    });
+
+    fs.unlinkSync(filePath);
+  } catch (e) {
+    res.json({ error: e.message });
+  }
+});
+
+// Download Route
+app.get("/download/:file", (req, res) => {
+  res.download(req.params.file);
+});
+
+app.listen(10000, () => console.log("SERVER ON PORT 10000"));

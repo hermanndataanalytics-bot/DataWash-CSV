@@ -1,0 +1,22 @@
+document.getElementById("cleanBtn").onclick = async () => {
+
+  let file = document.getElementById("csv").files[0];
+  if (!file) return alert("Select CSV first!");
+
+  let form = new FormData();
+  form.append("file", file);
+
+  let res = await fetch("/clean", { method: "POST", body: form });
+  let data = await res.json();
+
+  document.getElementById("output").innerHTML = `
+    <h3>📊 Cleaning Completed</h3>
+    <p><b>Total rows:</b> ${data.total}</p>
+    <p><b>Cleaned rows:</b> ${data.cleaned}</p>
+    <p><b>Empty removed:</b> ${data.emptyRows}</p>
+    <p><b>Quality Score:</b> ${data.score}%</p>
+    <a href="/download/${data.download}" download>⬇ Download Cleaned Excel</a>
+    <hr>
+    <pre>${JSON.stringify(data.preview, null, 2)}</pre>
+  `;
+}
