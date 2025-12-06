@@ -1,519 +1,139 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DataWash-CSV Dashboard</title>
-<!-- TANDREMO: TSY MAINTSY MIVOAKA TSARA ITY SCRIPT ITY AMIN'NY BROWSER -->
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-<style>
-    /* Custom styling for a better scrollable table */
-    #table-container {
-        max-height: 70vh; /* Max height for vertical scrolling */
-        overflow-y: auto;
-    }
-    .data-table th, .data-table td {
-        padding: 8px 12px;
-        white-space: nowrap; /* Prevent wrapping inside cells */
-        border-bottom: 1px solid #374151; /* gray-700 */
-        text-align: left;
-    }
-    .data-table th {
-        background-color: #1f2937; /* gray-800 for sticky header */
-        position: sticky;
-        top: 0;
-        z-index: 10;
-        cursor: default; /* Keep default cursor for sorting */
-    }
-    .data-table tr:hover {
-        background-color: #374151; /* gray-700 on hover */
-    }
-    /* Hidden file input trick */
-    #fileInput {
-        display: none;
-    }
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>DataWash-CSV™ — Dashboard</title>
+
+  <!-- Tailwind (CDN for quick use) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    /* small enhancement for drop zone */
+    .drop-active { background: linear-gradient(90deg,#071028 0%, #0b1724 100%); border-color: #60a5fa; }
+    .card-shadow { box-shadow: 0 6px 18px rgba(8,10,25,0.6) }
+    pre{ white-space: pre-wrap; word-break: break-word; }
+  </style>
 </head>
+<body class="bg-slate-900 text-slate-100 font-sans">
+  <div class="max-w-6xl mx-auto p-6">
+    <!-- Header -->
+    <header class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-3xl font-semibold">DataWash-CSV™ <span class="text-sky-400">Pro</span></h1>
+        <p class="text-slate-400 text-sm">Smart CSV cleaning • Repair • Export • Quality reports</p>
+      </div>
+      <div class="flex gap-3">
+        <button id="btn-analyze" class="px-4 py-2 bg-sky-600 rounded-md hover:bg-sky-500">Analyze</button>
+        <button id="btn-repair" class="px-4 py-2 bg-emerald-600 rounded-md hover:bg-emerald-500">AI Repair</button>
+      </div>
+    </header>
 
-<body class="bg-gray-900 text-white font-sans">
+    <!-- Upload + Preview Row -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <!-- Left: Upload -->
+      <div class="col-span-1 card-shadow rounded-lg bg-slate-800 p-4">
+        <label id="dropzone" class="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-slate-700 rounded-md p-6 cursor-pointer text-center"
+               style="min-height:200px">
+          <input id="fileInput" type="file" accept=".csv" class="hidden" />
+          <div>
+            <svg class="mx-auto mb-2" width="48" height="48" viewBox="0 0 24 24" fill="none"><path d="M12 3v10" stroke="#60a5fa" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7" stroke="#60a5fa" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <div class="text-slate-300 font-medium">Drop CSV here or click to choose</div>
+            <div class="text-xs text-slate-500 mt-1">Supports quoted CSV, UTF-8. Max 10 MB recommended.</div>
+          </div>
+        </label>
 
-<!-- HEADER -->
-<header class="p-5 flex justify-between items-center border-b border-gray-700 shadow-lg">
-    <h1 class="text-2xl font-extrabold text-cyan-400 flex items-center">
-        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 110 4h1a2 2 0 100-4h-1zm0 12a2 2 0 110 4h1a2 2 0 100-4h-1zm-6-4a2 2 0 110-4h1a2 2 0 100-4H5a2 2 0 01-2-2V7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2v-1a2 2 0 00-2 2h14a2 2 0 012-2V7a2 2 0 01-2-2H5a2 2 0 01-2-2v12zm10-4a2 2 0 110 4h1a2 2 0 100-4h-1z"></path></svg>
-        DataWash-CSV™
-    </h1>
-    <button onclick="downloadExcel()" class="bg-cyan-600 px-4 py-2 rounded-lg font-medium hover:bg-cyan-500 transition duration-200 shadow-md">
-        ⬇ Export Clean CSV
-    </button>
-</header>
-
-<!-- MAIN DASHBOARD -->
-<div class="grid lg:grid-cols-4 gap-6 p-6">
-
-    <!-- 📌 LEFT PANEL UPLOAD -->
-    <div class="lg:col-span-1 col-span-4 bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-xl h-fit">
-        <h2 class="text-xl mb-3 font-semibold text-gray-200">Upload CSV</h2>
-
-        <div id="dropzone"
-            class="border-2 border-dashed border-gray-500 rounded-lg p-8 text-center cursor-pointer hover:bg-gray-700 transition duration-150"
-            onclick="document.getElementById('fileInput').click()">
-            <p class="text-gray-400 mb-2">Drag & Drop or Click to Select</p>
-            <p id="fileNameDisplay" class="font-medium text-cyan-400 truncate">No file chosen</p>
-        </div>
-        <input type="file" id="fileInput" accept=".csv" class="hidden">
-    </div>
-
-    <!-- 📊 KPI CARDS & CONTROLS -->
-    <div class="lg:col-span-3 col-span-4">
-
-        <!-- KPI CARDS -->
-        <div class="grid grid-cols-3 gap-4 mb-6">
-            <div class="p-5 bg-gray-800 rounded-xl border border-gray-700 text-center shadow-lg">
-                <h3 class="text-gray-400 text-sm uppercase tracking-wider">ROWS</h3>
-                <p id="kpi_rows" class="text-4xl font-extrabold text-white mt-1">-</p>
-            </div>
-
-            <div class="p-5 bg-gray-800 rounded-xl border border-gray-700 text-center shadow-lg">
-                <h3 class="text-gray-400 text-sm uppercase tracking-wider">COLUMNS</h3>
-                <p id="kpi_cols" class="text-4xl font-extrabold text-white mt-1">-</p>
-            </div>
-
-            <div class="p-5 bg-gray-800 rounded-xl border border-gray-700 text-center shadow-lg">
-                <h3 class="text-gray-400 text-sm uppercase tracking-wider">% MISSING</h3>
-                <p id="kpi_missing" class="text-4xl font-extrabold text-yellow-400 mt-1">-</p>
-            </div>
+        <div class="mt-4 flex gap-2">
+          <button id="btnUpload" class="flex-1 bg-indigo-600 hover:bg-indigo-500 px-3 py-2 rounded-md">Clean & Download XLSX</button>
+          <button id="btnStats" class="bg-slate-700 px-3 py-2 rounded-md">Stats</button>
         </div>
 
-        <!-- 🔍 FILTER / AI TOOLKIT -->
-        <div class="p-5 bg-gray-800 border border-gray-700 rounded-xl shadow-xl">
-            <h2 class="text-xl mb-4 font-semibold text-gray-200">Data Toolkit</h2>
+        <div id="uploadStatus" class="mt-3 text-xs text-slate-400"></div>
+      </div>
 
-            <!-- Search and Filter Row -->
-            <div class="flex flex-wrap items-center gap-3 mb-4">
-                <select id="columnSelect" class="bg-gray-900 p-2 rounded-lg border border-gray-700 text-sm text-gray-300 w-full sm:w-auto"></select>
-
-                <input id="searchInput"
-                    class="bg-gray-900 p-2 rounded-lg border border-gray-700 text-sm flex-1 placeholder-gray-500"
-                    placeholder="Search value in selected column...">
-
-                <button onclick="applyFilter()"
-                    class="bg-cyan-600 px-4 py-2 rounded-lg hover:bg-cyan-500 transition duration-200 font-medium w-full sm:w-auto">
-                    🔍 Filter
-                </button>
-
-                <button onclick="resetFilter()"
-                    class="bg-red-600 px-4 py-2 rounded-lg hover:bg-red-500 transition duration-200 font-medium w-full sm:w-auto">
-                    ♻ Reset
-                </button>
+      <!-- Middle: KPIs -->
+      <div class="col-span-2 grid grid-cols-1 gap-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div class="bg-slate-800 p-4 rounded-lg card-shadow">
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="text-sm text-slate-400">Total rows</div>
+                <div id="total" class="text-2xl font-semibold text-white">—</div>
+              </div>
+              <div class="text-sm text-slate-300">📄</div>
             </div>
-
-            <!-- Replace and AI Repair Row -->
-            <div class="flex flex-wrap items-center gap-3">
-                <input id="replaceFrom"
-                    class="bg-gray-900 p-2 rounded-lg border border-gray-700 text-sm w-full sm:w-auto flex-grow"
-                    placeholder="Find (value or pattern)...">
-
-                <input id="replaceTo"
-                    class="bg-gray-900 p-2 rounded-lg border border-gray-700 text-sm w-full sm:w-auto flex-grow"
-                    placeholder="Replace with...">
-
-                <button onclick="replaceValues()"
-                    class="bg-yellow-500 px-4 py-2 rounded-lg hover:bg-yellow-400 transition duration-200 font-medium w-full sm:w-auto">
-                    🔄 Replace
-                </button>
-
-                <!-- This button now triggers the AI Cleaning -->
-                <button id="aiRepairBtn" onclick="cleanCSVWithAI()"
-                    class="bg-purple-600 px-4 py-2 rounded-lg hover:bg-purple-500 transition duration-200 font-medium w-full sm:w-auto">
-                    🤖 AI REPAIR & CLEAN
-                </button>
+          </div>
+          <div class="bg-slate-800 p-4 rounded-lg card-shadow">
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="text-sm text-slate-400">Empty rows</div>
+                <div id="empty" class="text-2xl font-semibold text-white">—</div>
+              </div>
+              <div class="text-sm text-slate-300">🧹</div>
             </div>
+          </div>
+          <div class="bg-slate-800 p-4 rounded-lg card-shadow">
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="text-sm text-slate-400">Duplicates</div>
+                <div id="duplicates" class="text-2xl font-semibold text-white">—</div>
+              </div>
+              <div class="text-sm text-slate-300">🔁</div>
+            </div>
+          </div>
+          <div class="bg-slate-800 p-4 rounded-lg card-shadow">
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="text-sm text-slate-400">Quality</div>
+                <div id="score" class="text-2xl font-semibold text-white">—%</div>
+              </div>
+              <div class="text-sm text-slate-300">⭐</div>
+            </div>
+          </div>
         </div>
-    </div>
-</div>
 
-<!-- 📌 Status/Loading Message -->
-<div id="statusMessage" class="p-6 pt-0 text-center hidden">
-    <div class="inline-block bg-blue-900 text-blue-300 p-3 rounded-xl border border-blue-700">
-        <div id="loader" class="animate-spin inline-block w-4 h-4 border-2 border-t-2 border-blue-300 border-opacity-75 rounded-full mr-2"></div>
-        <span id="statusText">Loading...</span>
-    </div>
-</div>
-
-<!-- TABLE PREVIEW -->
-<div class="p-6">
-    <div id="table-container" class="bg-gray-800 rounded-xl shadow-2xl border border-gray-700 overflow-x-auto">
-        <div id="tableContent" class="p-4 text-center text-gray-500">
-            Upload a CSV file to see the data preview here.
+        <!-- Chart -->
+        <div class="bg-slate-800 p-4 rounded-lg card-shadow">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-lg font-semibold">Data Quality Overview</h3>
+            <div class="text-sm text-slate-400">Preview / last run</div>
+          </div>
+          <canvas id="qualityChart" height="120"></canvas>
         </div>
+      </div>
     </div>
-</div>
 
-<script type="module">
-    // --- Global State ---
-    let originalData = [];
-    let currentData = [];
-    let table = null;
-    let currentFile = null;
+    <!-- Bottom: Preview table + download links -->
+    <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="bg-slate-800 p-4 rounded-lg card-shadow">
+        <h3 class="font-semibold mb-2">Preview (first 30 rows)</h3>
+        <div id="previewContainer" class="overflow-auto max-h-64 bg-slate-900 rounded p-2 text-sm"></div>
+      </div>
 
-    // --- API Setup ---
-    const API_KEY = ""; // Automatically provided by the environment
-    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`;
+      <div class="bg-slate-800 p-4 rounded-lg card-shadow">
+        <h3 class="font-semibold mb-2">Actions & Download</h3>
+        <div id="downloads" class="flex flex-col gap-2"></div>
 
-    // --- DOM Elements ---
-    const fileInput = document.getElementById('fileInput');
-    const fileNameDisplay = document.getElementById('fileNameDisplay');
-    const tableContainer = document.getElementById('tableContent');
-    const columnSelect = document.getElementById('columnSelect');
-    const searchInput = document.getElementById('searchInput');
-    const replaceFrom = document.getElementById('replaceFrom');
-    const replaceTo = document.getElementById('replaceTo');
-    const kpiRows = document.getElementById('kpi_rows');
-    const kpiCols = document.getElementById('kpi_cols');
-    const kpiMissing = document.getElementById('kpi_missing');
-    const statusMessageDiv = document.getElementById('statusMessage');
-    const statusTextSpan = document.getElementById('statusText');
-    const aiRepairBtn = document.getElementById('aiRepairBtn');
+        <div class="mt-4">
+          <label class="text-sm text-slate-400">Imputation strategy</label>
+          <select id="impute" class="mt-1 bg-slate-700 p-2 rounded">
+            <option value="auto">Auto (mean/mode)</option>
+            <option value="mean">Mean</option>
+            <option value="median">Median</option>
+          </select>
+        </div>
 
-    // --- Utility Functions ---
+        <div class="mt-4 text-sm text-slate-400">
+          <strong>Note:</strong> For production consider adding user auth & quotas (Stripe billing). See Settings.
+        </div>
+      </div>
+    </div>
 
-    /** Shows a loading/status message */
-    function setStatus(text, isLoading = false) {
-        statusTextSpan.textContent = text;
-        statusMessageDiv.classList.toggle('hidden', false);
-        document.getElementById('loader').classList.toggle('hidden', !isLoading);
-        aiRepairBtn.disabled = isLoading;
-        aiRepairBtn.classList.toggle('opacity-50', isLoading);
-    }
+  </div>
 
-    /** Hides the status message */
-    function hideStatus() {
-        statusMessageDiv.classList.add('hidden');
-    }
-
-    /** Calculates and updates KPI cards */
-    function updateKPIs(data) {
-        if (!data || data.length === 0) {
-            kpiRows.textContent = '-';
-            kpiCols.textContent = '-';
-            kpiMissing.textContent = '-';
-            return;
-        }
-
-        const rows = data.length - 1; // Subtract header
-        const cols = data[0].length;
-        let missingCount = 0;
-        let totalCells = rows * cols;
-
-        for (let i = 1; i < data.length; i++) {
-            for (let j = 0; j < data[i].length; j++) {
-                if (data[i][j] === null || data[i][j] === undefined || String(data[i][j]).trim() === '') {
-                    missingCount++;
-                }
-            }
-        }
-
-        const missingPercentage = totalCells > 0 ? ((missingCount / totalCells) * 100).toFixed(2) : 0;
-
-        kpiRows.textContent = rows.toLocaleString();
-        kpiCols.textContent = cols.toLocaleString();
-        kpiMissing.textContent = missingPercentage + '%';
-        kpiMissing.classList.remove('text-yellow-400', 'text-green-400');
-        kpiMissing.classList.add(missingPercentage > 5 ? 'text-yellow-400' : 'text-green-400');
-    }
-
-    /** Renders the CSV data into an HTML table */
-    function renderTable(data) {
-        if (!data || data.length === 0) {
-            tableContainer.innerHTML = '<p class="p-4">No data to display. Please upload a CSV.</p>';
-            return;
-        }
-
-        const headers = data[0];
-        const body = data.slice(1);
-
-        let tableHtml = `<table class="data-table min-w-full"><thead><tr>`;
-        headers.forEach(header => {
-            tableHtml += `<th class="bg-gray-900 text-gray-400 uppercase text-xs tracking-wider">${header}</th>`;
-        });
-        tableHtml += `</tr></thead><tbody>`;
-
-        body.forEach(row => {
-            tableHtml += `<tr>`;
-            row.forEach(cell => {
-                const cellValue = cell === null || cell === undefined || String(cell).trim() === '' ?
-                                  `<span class="text-red-500 italic">MISSING</span>` : cell;
-                tableHtml += `<td>${cellValue}</td>`;
-            });
-            tableHtml += `</tr>`;
-        });
-
-        tableHtml += `</tbody></table>`;
-        tableContainer.innerHTML = tableHtml;
-    }
-
-    /** Populates the column selection dropdown */
-    function populateColumnSelect(headers) {
-        columnSelect.innerHTML = headers.map((header, index) =>
-            `<option value="${index}">${header}</option>`
-        ).join('');
-    }
-
-    // --- Data Processing & UI Interaction ---
-
-    /** Handles file upload and parsing */
-    function handleFile(file) {
-        if (file) {
-            currentFile = file;
-            fileNameDisplay.textContent = file.name;
-            setStatus(`Reading file: ${file.name}...`, true);
-
-            Papa.parse(file, {
-                header: false,
-                dynamicTyping: true,
-                skipEmptyLines: true,
-                complete: function(results) {
-                    originalData = results.data;
-                    currentData = [...originalData]; // Copy for filtering/manipulation
-                    renderTable(currentData);
-                    populateColumnSelect(currentData[0]);
-                    updateKPIs(currentData);
-                    hideStatus();
-                },
-                error: function(error) {
-                    setStatus(`Error parsing file: ${error.message}`, false);
-                    setTimeout(hideStatus, 5000);
-                }
-            });
-        }
-    }
-
-    /** Applies search filter to the current data */
-    function applyFilter() {
-        if (originalData.length === 0) return;
-
-        const columnIndex = parseInt(columnSelect.value);
-        const searchTerm = searchInput.value.toLowerCase().trim();
-
-        if (!searchTerm) {
-            currentData = [...originalData];
-        } else {
-            // Header row is always included
-            const filteredRows = originalData.filter((row, index) => {
-                if (index === 0) return true; // Keep header
-
-                const cellValue = String(row[columnIndex] || '').toLowerCase();
-                return cellValue.includes(searchTerm);
-            });
-            currentData = filteredRows;
-        }
-
-        renderTable(currentData);
-        updateKPIs(currentData);
-    }
-
-    /** Resets the filter to show all original data */
-    function resetFilter() {
-        currentData = [...originalData];
-        searchInput.value = '';
-        renderTable(currentData);
-        updateKPIs(currentData);
-    }
-
-    /** Replaces values in the current data */
-    function replaceValues() {
-        if (originalData.length === 0) return;
-
-        const findValue = replaceFrom.value.trim();
-        const replaceWithValue = replaceTo.value.trim();
-        const columnIndex = parseInt(columnSelect.value);
-
-        if (!findValue) {
-            setStatus("Please enter a value to find.", false);
-            setTimeout(hideStatus, 3000);
-            return;
-        }
-
-        let changesMade = 0;
-
-        for (let i = 1; i < currentData.length; i++) {
-            const cell = String(currentData[i][columnIndex]);
-            if (cell.includes(findValue)) {
-                currentData[i][columnIndex] = cell.replaceAll(findValue, replaceWithValue);
-                changesMade++;
-            }
-        }
-
-        renderTable(currentData);
-        updateKPIs(currentData);
-        setStatus(`${changesMade} occurrences replaced in column "${originalData[0][columnIndex]}".`, false);
-        setTimeout(hideStatus, 5000);
-    }
-
-    /** Downloads the current data as a CSV file */
-    function downloadExcel() {
-        if (currentData.length === 0) {
-            setStatus("No data to export.", false);
-            setTimeout(hideStatus, 3000);
-            return;
-        }
-
-        const csv = Papa.unparse(currentData);
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.setAttribute('href', url);
-        link.setAttribute('download', 'cleaned_data.csv');
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
-
-
-    // --- Gemini AI Integration ---
-
-    /** Calls the Gemini API to clean and repair the CSV data */
-    async function cleanCSVWithAI() {
-        if (originalData.length === 0) {
-            setStatus("Please upload a CSV file first.", false);
-            setTimeout(hideStatus, 3000);
-            return;
-        }
-
-        // Limit the data sent to the API to prevent overly long requests
-        const sampleData = [originalData[0], ...originalData.slice(1, 10)]; // Header + first 9 rows
-        const csvSample = Papa.unparse(sampleData);
-
-        const systemPrompt = `You are an expert data cleaning and manipulation tool. Your task is to analyze the provided CSV data, identify common errors (like missing values, inconsistent formats, or strange characters), and return a CLEANED version of the data. 
-                              The output MUST be ONLY a JSON array of arrays, representing the cleaned CSV data. DO NOT include any explanatory text, markdown formatting, or preamble/postamble. 
-                              Use the structure: [[header1, header2, ...], [row1_value1, row1_value2, ...], ...].
-                              For missing values, try to intelligently impute them based on context. If imputation is impossible, leave the cell as an empty string ("").
-                              Ensure the total number of rows (including header) and columns remains consistent with the input.
-                              The first row is always the header.`;
-        
-        const userQuery = `Analyze and clean this CSV data. Return the full cleaned CSV content (header + all rows) as a single JSON array of arrays. The header is: ${originalData[0].join(', ')}. Here is the sample data for context: \n\n${csvSample}\n\n Clean ALL the data rows, not just the sample.`;
-        
-        setStatus('🤖 AI is repairing and cleaning the data... This may take a moment.', true);
-        
-        try {
-            const payload = {
-                contents: [{ parts: [{ text: userQuery }] }],
-                systemInstruction: { parts: [{ text: systemPrompt }] },
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: "ARRAY",
-                        items: { type: "ARRAY" }
-                    }
-                }
-            };
-
-            const response = await fetchWithExponentialBackoff(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            }, 3); // Retry up to 3 times
-
-            const result = await response.json();
-            
-            if (result.candidates && result.candidates.length > 0 && 
-                result.candidates[0].content && result.candidates[0].content.parts &&
-                result.candidates[0].content.parts.length > 0) {
-                
-                const jsonText = result.candidates[0].content.parts[0].text;
-                let cleanedData = JSON.parse(jsonText);
-
-                // --- IMPORTANT: Validate and Integrate Cleaned Data ---
-                if (cleanedData.length > 0 && JSON.stringify(cleanedData[0]) === JSON.stringify(originalData[0])) {
-                    originalData = cleanedData;
-                    currentData = [...originalData];
-                    renderTable(currentData);
-                    updateKPIs(currentData);
-                    setStatus('✅ AI Repair complete! Data has been updated.', false);
-                } else {
-                    setStatus('⚠️ AI returned data with an inconsistent structure (headers changed or missing). The data was NOT updated.', false);
-                }
-            } else {
-                setStatus('❌ AI Repair failed: Could not get a response from the model.', false);
-            }
-
-        } catch (error) {
-            console.error('Gemini API Error:', error);
-            setStatus('❌ AI Repair failed due to a network or server error. Check console for details.', false);
-        } finally {
-            setTimeout(hideStatus, 5000);
-        }
-    }
-    
-    // --- Exponential Backoff Fetch Utility ---
-    async function fetchWithExponentialBackoff(url, options, maxRetries) {
-        let lastError = null;
-        for (let i = 0; i < maxRetries; i++) {
-            try {
-                const response = await fetch(url, options);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response;
-            } catch (error) {
-                lastError = error;
-                const delay = Math.pow(2, i) * 1000;
-                if (i < maxRetries - 1) {
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                }
-            }
-        }
-        throw new Error(`Fetch failed after ${maxRetries} attempts. Last error: ${lastError.message}`);
-    }
-
-
-    // --- Event Listeners ---
-
-    // 1. File Input Handler
-    fileInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        handleFile(file);
-    });
-
-    // 2. Dropzone Handlers
-    const dropzone = document.getElementById('dropzone');
-    dropzone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropzone.classList.add('ring-2', 'ring-cyan-400');
-    });
-    dropzone.addEventListener('dragleave', (e) => {
-        e.preventDefault();
-        dropzone.classList.remove('ring-2', 'ring-cyan-400');
-    });
-    dropzone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropzone.classList.remove('ring-2', 'ring-cyan-400');
-        const file = e.dataTransfer.files[0];
-        if (file && file.name.endsWith('.csv')) {
-            handleFile(file);
-        } else {
-            // Replaced alert() with console log/status update as per rules
-            setStatus("Please drop a valid CSV file.", false);
-            setTimeout(hideStatus, 3000);
-        }
-    });
-
-    // 3. Search Input Enter Key
-    searchInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            applyFilter();
-        }
-    });
-
-    // --- Initial Setup ---
-    document.addEventListener('DOMContentLoaded', () => {
-        updateKPIs([]); // Initialize KPIs to '-'
-        // Ensure the initial status is hidden
-        hideStatus();
-    });
-
-</script>
+  <script src="app.js" type="module"></script>
 </body>
 </html>
