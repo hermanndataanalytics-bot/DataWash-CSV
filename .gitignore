@@ -1,4 +1,29 @@
-node_modules/
+Lahatahiry an'ny Dependencies goavana
+
+/node_modules
+
+Logs
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+Fampahalalana manokana (Personal/Secret Information)
+
+Mampiasà .env na config manokana fa aza apetraka ao amin'ny Git
+
 .env
-*.log
+.DS_Store
+
+Fampiharana Windows / IDE manokana
+
+Thumbs.db
+*.suo
+*.user
+*.pdb
+*.intellisense.js
+
+Rakitra vonjimaika
+
+*.tmp
 /tmp

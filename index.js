@@ -1,202 +1,151 @@
-// ------------------------------
-//  PREMIUM VERSION - DataWash-CSV™
-//  CLEAN + AI-REPAIR + EXPORT EXCEL + DUPLICATES + STATS REPORT
-// ------------------------------
+import express from 'express';
+import fileUpload from 'express-fileupload';
+import fs from 'fs/promises';
+import { existsSync } from 'fs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
+import csvtojson from 'csvtojson';
+import { Parser } from 'json2csv';
+import _ from 'lodash';
+import cors from 'cors';
 
-import express from "express";
-import fileUpload from "express-fileupload";
-import csv from "csvtojson";
-import fs from "fs";
-import path from "path";
-import ExcelJS from "exceljs";
-import { Parser as Json2csvParser } from "json2csv";
-import _ from "lodash";
+// -- Fanasana Global Variables sy Path --
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
+// Toerana hitehirizana rakitra voadio.
+const PUBLIC_DIR = join(__dirname, 'public');
+const DOWNLOADS_DIR = join(PUBLIC_DIR, 'downloads');
+
+// Server configuration
 const app = express();
-app.use(fileUpload());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+const PORT = process.env.PORT || 3000;
 
-// Serve UI client
-app.use(express.static(path.join(__dirname, "client")));
+// -- Middleware --
 
+// CORS configuration (Manome antoka fa afaka mifandray ny React UI)
+app.use(cors({
+    origin: '*', 
+    methods: ['GET', 'POST', 'OPTIONS'],
+}));
 
-// ================================
-// 🔥 CSV DEFAULT CLEAN ENGINE
-// ================================
-function normalizeWhitespace(data){
-    return data.map(row=>{
-        let newRow={};
-        Object.keys(row).forEach(k=>{
-            newRow[k]=String(row[k]||"").trim().replace(/\s+/g," ");
-        });
-        return newRow;
-    });
-}
-function removeOutliers(data){
-    if(data.length===0) return data;
-    let numericKeys = Object.keys(data[0]).filter(key=>{
-        return data.some(row => /^-?\d+(\.\d+)?$/.test(String(row[key])));
-    });
-    return data.filter(row=>{
-        return Object.keys(row).every(key=>{
-            if(!numericKeys.includes(key)) return true;
-            const val = parseFloat(row[key]);
-            return !(val > 999999999 || val < -999999999);
-        });
-    });
-}
-function removeDuplicates(data){
-    const set = new Set();
-    return data.filter(row=>{
-        const key = JSON.stringify(row);
-        if(set.has(key)) return false;
-        set.add(key); return true;
-    });
-}
+// File Upload Middleware (Mandray ny rakitra nalefa)
+app.use(fileUpload({
+    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max
+    abortOnLimit: true,
+}));
 
+// Manompo ny rakitra static (manome lalana ny front-end hanome ny rakitra voadio)
+app.use(express.static(PUBLIC_DIR));
 
-
-// ================================
-// 🔥 AI-REPAIR ENGINE
-// ================================
-function detectType(values){
-    const email=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const phone=/^[0-9 \-\+\(\)]{8,}$/;
-    let tests={num:0, date:0, email:0, phone:0, text:0};
-
-    values.forEach(v=>{
-        if(!v) return;
-        if(email.test(v)) tests.email++;
-        else if(phone.test(v)) tests.phone++;
-        else if(!isNaN(v.replace(",",".")*1)) tests.num++;
-        else if(!isNaN(Date.parse(v))) tests.date++;
-        else tests.text++;
-    });
-
-    return Object.keys(tests).sort((a,b)=>tests[b]-tests[a])[0];
-}
-function parseDate(v){
-    if(!v) return null;
-    const tryDate=new Date(v);
-    if(!isNaN(tryDate)) return tryDate.toISOString();
-    const m=v.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
-    if(m){
-        let D=m[1].padStart(2,'0'),M=m[2].padStart(2,'0'),Y=m[3];
-        if(Y.length===2) Y='20'+Y;
-        return new Date(`${Y}-${M}-${D}`).toISOString();
+// -- Logic momba ny fanadiovana --
+/**
+ * Manadio ny data CSV.
+ * 1. Manala ny tsipika/spaces tsy ilaina amin'ny sisin'ny sanda rehetra.
+ * 2. Manala ny rows banga.
+ * 3. Manala ny duplicate rows manontolo.
+ * @param {string} csvText - Ilay data CSV.
+ * @returns {Promise<string>} - CSV voadio.
+ */
+async function cleanCsvData(csvText) {
+    if (!csvText || csvText.trim() === '') {
+        throw new Error('Rakotra CSV banga na tsy misy na inona na inona.');
     }
-    return null;
-}
-function repairColumn(values,type){
-    if(type==="num"){
-        let nums=values.map(v=>parseFloat(v.replace(",",".")||null)).filter(n=>!isNaN(n));
-        let mean=nums.reduce((a,b)=>a+b,0)/nums.length;
-        return values.map(v=>isNaN(v)? mean:parseFloat(v));
+
+    // 1. Convert CSV mankany amin'ny JSON
+    const jsonArray = await csvtojson().fromString(csvText);
+
+    if (jsonArray.length === 0) {
+        throw new Error('Tsy nisy data azo avy amin’ny CSV. Jereo ny format.');
     }
-    if(type==="date") return values.map(v=>parseDate(v));
-    if(type==="email") return values.map(v=>v?v.toLowerCase().trim():null);
-    let freq={}; values.forEach(v=>{if(v) freq[v]=(freq[v]||0)+1;});
-    let mode=Object.entries(freq).sort((a,b)=>b[1]-a[1])[0]?.[0]||"";
-    return values.map(v=>v?v:mode);
+
+    // 2. Manadio ny sanda tsirairay ary manala ny rows banga
+    const cleanedJsonArray = jsonArray
+        .map(row => {
+            const newRow = {};
+            let isRowEmpty = true;
+            for (const key in row) {
+                // Mampiasa _.trim hanesorana ny spaces amin'ny sisiny
+                const cleanedValue = _.trim(String(row[key] || ''));
+                newRow[key] = cleanedValue;
+                if (cleanedValue !== '') {
+                    isRowEmpty = false;
+                }
+            }
+            return isRowEmpty ? null : newRow;
+        })
+        .filter(row => row !== null); // Manala ny rows banga tanteraka
+
+    if (cleanedJsonArray.length === 0) {
+        throw new Error('Tsy nisy data azo taorian’ny fanadiovana (banga daholo).');
+    }
+
+    // 3. Manala ny duplicate rows
+    // JSON.stringify no ampiasaina hanamarinana raha mitovy tanteraka ny rows
+    const uniqueJsonSet = new Set(cleanedJsonArray.map(JSON.stringify));
+    const uniqueJsonArray = Array.from(uniqueJsonSet).map(JSON.parse);
+
+    // 4. Mamerina azy ho CSV
+    const fields = Object.keys(uniqueJsonArray[0]);
+    const json2csvParser = new Parser({ fields });
+    const cleanedCsv = json2csvParser.parse(uniqueJsonArray);
+
+    return cleanedCsv;
 }
 
+// -- API Routes --
 
-
-// ================================
-// 📌 ROUTE — Upload + Clean CSV
-// ================================
-app.post("/api/clean", async(req,res)=>{
-    try{
-        if(!req.files?.file) return res.status(400).send("Missing file");
-        const tmp = "upload_"+Date.now()+".csv";
-        await req.files.file.mv(tmp);
-
-        let data = await csv().fromFile(tmp);
-        let cleaned = normalizeWhitespace(data);
-        cleaned = removeOutliers(cleaned);
-        cleaned = removeDuplicates(cleaned);
-
-        const out="cleaned_"+Date.now()+".csv";
-        const parser=new Json2csvParser();
-        fs.writeFileSync(out,parser.parse(cleaned));
-
-        res.json({ ok:true, rows:cleaned.length, download:"/download/"+out });
-    }catch(e){res.status(500).send(e.toString());}
-});
-
-
-
-// ================================
-// 📌 AI-Repair CSV + Excel Export
-// ================================
-app.post("/api/repair", async(req,res)=>{
-    try{
-        if(!req.files?.file) return res.status(400).send("Missing file");
-        const tmp="repair_"+Date.now()+".csv";
-        await req.files.file.mv(tmp);
-
-        const raw=await csv().fromFile(tmp);
-        let header=Object.keys(raw[0]);
-
-        // AI detect + repair per column
-        let repaired=[];
-        for(let col of header){
-            const values=raw.map(r=>String(r[col]||""));
-            let type=detectType(values);
-            let rep=repairColumn(values,type);
-            repaired.push({col,type,values:rep});
+// Route Fandefasana Rakitra (Main Logic)
+app.post('/upload', async (req, res) => {
+    try {
+        // 1. Manamarina raha misy ny rakitra
+        if (!req.files || Object.keys(req.files).length === 0) {
+            return res.status(400).json({ message: 'Tsy nahitana rakitra nalefa.', error: 'No file uploaded.' });
         }
+        
+        // Raisina ilay rakitra antsoina hoe 'csvFile'
+        const csvFile = req.files.csvFile; 
 
-        // rebuild rows
-        let rebuilt=[];
-        for(let i=0;i<raw.length;i++){
-            let row={};
-            repaired.forEach(c=> row[c.col]=c.values[i]);
-            rebuilt.push(row);
-        }
+        // 2. Famakiana ny rakitra sy fanadiovana
+        const csvText = csvFile.data.toString('utf8');
+        const cleanedCsv = await cleanCsvData(csvText);
 
-        rebuilt=removeDuplicates(rebuilt);
+        // 3. Fitehirizana ny valiny
+        await fs.mkdir(DOWNLOADS_DIR, { recursive: true }); 
 
-        // Export CSV
-        const outCSV="repaired_"+Date.now()+".csv";
-        fs.writeFileSync(outCSV,new Json2csvParser().parse(rebuilt));
+        const uniqueFilename = `cleaned_${Date.now()}.csv`;
+        const filePath = join(DOWNLOADS_DIR, uniqueFilename);
+        
+        // Fitehirizana ny CSV voadio ao amin'ny public/downloads
+        await fs.writeFile(filePath, cleanedCsv, 'utf8');
 
-        // Export Excel
-        const outXLS="repaired_"+Date.now()+".xlsx";
-        const excel=new ExcelJS.Workbook();
-        const sh=excel.addWorksheet("CLEANED DATA");
-        sh.addRow(header);
-        rebuilt.forEach(r=> sh.addRow(header.map(h=>r[h])));
-        await excel.xlsx.writeFile(outXLS);
+        // 4. Manome valiny ho an'ny Front-end (URL azo ampidinina)
+        const cleanedDataUrl = `${req.protocol}://${req.get('host')}/downloads/${uniqueFilename}`;
 
-        res.json({
-            success:true,
-            rows_before:raw.length,
-            rows_after:rebuilt.length,
-            column_types:Object.fromEntries(repaired.map(r=>[r.col,r.type])),
-            download:{csv:"/download/"+outCSV, xlsx:"/download/"+outXLS},
-            preview:rebuilt.slice(0,30)
+        return res.status(200).json({
+            message: 'Fanadiovana nahomby ary voatahiry ny rakitra.',
+            fileName: uniqueFilename,
+            cleanedDataUrl: cleanedDataUrl,
         });
 
-    }catch(e){res.status(500).json({error:e.toString()});}
+    } catch (error) {
+        console.error('Fahadisoana nandritra ny fanodinana:', error.message);
+        
+        // Mamerina hafatra fahadisoana mazava ho an'ny UI
+        return res.status(500).json({
+            message: 'Tsy nahomby ny fanodinana ny rakitra.',
+            error: error.message || 'Fahadisoana anaty server tsy fantatra.',
+        });
+    }
 });
 
+// -- Famelomana ny Server --
+app.listen(PORT, async () => {
+    console.log(`Server mandeha tsara ao amin'ny port ${PORT}`);
 
-
-// ================================
-// 📌 Static File Downloader
-// ================================
-app.get("/download/:file",(req,res)=>{
-    const file=req.params.file;
-    if(!fs.existsSync(file)) return res.status(404).send("File missing");
-    res.download(file);
+    // Fanombohana: Manome antoka fa misy ny folder downloads
+    if (!existsSync(DOWNLOADS_DIR)) {
+        await fs.mkdir(DOWNLOADS_DIR, { recursive: true });
+        console.log('Folder "downloads" noforonina.');
+    }
 });
-
-
-
-// ================================
-// 🚀 Run Server
-// ================================
-const PORT=process.env.PORT||10000;
-app.listen(PORT,()=>console.log("🔥 DataWash-CSV API Running on →",PORT));
