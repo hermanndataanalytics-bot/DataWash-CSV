@@ -1,10 +1,47 @@
-import React, { useState, useRef } from 'react';
-import { Upload, X, Loader2, CheckCircle, FileText, Download, Zap, BarChart3, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+// FANAMBOARANA: Ampidirina ny Trash2 satria niteraka ReferenceError
+import { Upload, X, Loader2, CheckCircle, FileText, Download, Zap, BarChart3, LogIn, User, Lock, ExternalLink, Trash2, FileSearch } from 'lucide-react';
+import { initializeApp } from 'firebase/app';
+import { 
+    getAuth, 
+    signInAnonymously, 
+    signInWithCustomToken, 
+    onAuthStateChanged, 
+    signOut 
+} from 'firebase/auth';
+import { 
+    getFirestore, 
+    doc, 
+    getDoc, 
+    setDoc, 
+    onSnapshot, 
+    updateDoc 
+} from 'firebase/firestore';
 
-// Note: Replace this with your Render URL after deploying the backend.
+// --- Global Configuration ---
+// Ny URL an'ny Backend live anao (voamarina tamin'ny Render)
 const API_URL = 'https://datawash-csv.onrender.com/upload'; 
 
-// Mock Metrics structure for the dashboard
+// Fetra ho an'ny Free Tier (Isaky ny mpampiasa)
+const FREE_QUOTA_LIMIT = 5; 
+const QUOTA_COLLECTION_PATH = (appId, userId) => 
+    `/artifacts/${appId}/users/${userId}/quotas/usage`;
+
+// --- Firebase Initialization (MANDATORY USE OF GLOBAL VARS) ---
+const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+let app = null;
+let db = null;
+let auth = null;
+
+if (firebaseConfig) {
+    app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    auth = getAuth(app);
+}
+
+// Initial Metrics structure
 const initialMetrics = {
     originalRows: 0,
     cleanedRows: 0,
@@ -13,17 +50,64 @@ const initialMetrics = {
 };
 
 // Component: Header
-const Header = () => (
-    <div className="flex items-center space-x-4 p-4 mb-8">
-        <Zap className="w-8 h-8 text-indigo-400" />
-        <div>
-            <h1 className="text-3xl font-extrabold text-white">DataWash Pro Max</h1>
-            <p className="mt-1 text-sm text-indigo-300">Premium Data Cleansing Dashboard</p>
+const Header = ({ userId, handleSignOut, quota, isAuthReady }) => (
+    <div className="flex justify-between items-center p-4 mb-8 border-b border-indigo-700/50">
+        <div className="flex items-center space-x-4">
+            <Zap className="w-8 h-8 text-indigo-400" />
+            <div>
+                <h1 className="text-3xl font-extrabold text-white">DataWash Pro Max</h1>
+                <p className="mt-1 text-sm text-indigo-300">Premium Data Cleansing Dashboard</p>
+            </div>
+        </div>
+
+        <div className="flex items-center space-x-4">
+            {isAuthReady && userId && (
+                <div className="text-right hidden sm:block">
+                    <p className="text-xs text-gray-400">User ID:</p>
+                    <p className="text-sm font-mono text-indigo-300 truncate max-w-xs" title={userId}>
+                        {userId}
+                    </p>
+                </div>
+            )}
+
+            {isAuthReady && (
+                <QuotaDisplay quota={quota} />
+            )}
+
+            {isAuthReady && (
+                 <button
+                    onClick={handleSignOut}
+                    className="flex items-center px-3 py-2 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg transition duration-150 shadow-md"
+                    title="Sign Out"
+                >
+                    <LogIn className="w-4 h-4 mr-2" />
+                    Sign Out
+                </button>
+            )}
+             
         </div>
     </div>
 );
 
-// Component: Metrics Display Cards (KPI Cards)
+// Component: Quota Display
+const QuotaDisplay = ({ quota }) => {
+    const remaining = quota.limit - quota.used;
+    const isOverLimit = remaining <= 0;
+
+    let colorClass = 'bg-emerald-600';
+    if (remaining <= 1) colorClass = 'bg-red-600';
+    else if (remaining <= 3) colorClass = 'bg-yellow-600';
+
+    return (
+        <div className={`px-4 py-2 rounded-lg font-bold text-white shadow-lg transition duration-300 ${colorClass}`}>
+            <p className="text-xs font-light">Free Quota Remaining</p>
+            <p className="text-lg text-center">{remaining} / {quota.limit}</p>
+        </div>
+    );
+};
+
+
+// Component: Metrics Display Cards (KPI Cards - remains the same)
 const MetricCard = ({ icon, title, value, unit, color }) => (
     <div className={`p-5 rounded-xl shadow-lg border border-${color}-700 bg-${color}-900/30 backdrop-blur-sm transition duration-300 hover:bg-${color}-800/50`}>
         <div className="flex justify-between items-center">
@@ -39,7 +123,7 @@ const MetricCard = ({ icon, title, value, unit, color }) => (
     </div>
 );
 
-// Component: Cleaning Efficiency Chart
+// Component: Cleaning Efficiency Chart (remains the same)
 const CleaningEfficiencyChart = ({ metrics }) => {
     const { originalRows, cleanedRows, duplicatesRemoved } = metrics;
     
@@ -95,36 +179,42 @@ const CleaningEfficiencyChart = ({ metrics }) => {
     );
 };
 
-// Component: Status Card
-const StatusCard = ({ status, responseMessage, errorDetails, copyToClipboard }) => {
+// Component: Status Card (Updated to check Quota)
+const StatusCard = ({ status, responseMessage, errorDetails, copyToClipboard, isOverLimit }) => {
     let icon, title, color;
 
-    switch (status) {
-        case 'idle':
-            icon = <FileText className="w-8 h-8 text-gray-500" />;
-            title = "Awaiting CSV File Upload";
-            color = "border-gray-600 bg-gray-800/50";
-            break;
-        case 'uploading':
-        case 'cleaning':
-            icon = <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />;
-            title = "Cleaning and Processing in Progress...";
-            color = "border-indigo-600 bg-indigo-800/50"; 
-            break;
-        case 'success':
-            icon = <CheckCircle className="w-8 h-8 text-emerald-400" />;
-            title = "Cleaning Completed Successfully!";
-            color = "border-emerald-600 bg-emerald-800/50";
-            break;
-        case 'error':
-            icon = <X className="w-8 h-8 text-red-400" />;
-            title = "An Error Occurred";
-            color = "border-red-600 bg-red-800/50";
-            break;
-        default:
-            icon = <FileText className="w-8 h-8 text-gray-500" />;
-            title = "Awaiting File";
-            color = "border-gray-600 bg-gray-800/50";
+    if (isOverLimit) {
+        icon = <Lock className="w-8 h-8 text-yellow-400" />;
+        title = "Quota Limit Reached";
+        color = "border-yellow-600 bg-yellow-800/50";
+    } else {
+        switch (status) {
+            case 'idle':
+                icon = <FileText className="w-8 h-8 text-gray-500" />;
+                title = "Awaiting CSV File Upload";
+                color = "border-gray-600 bg-gray-800/50";
+                break;
+            case 'uploading':
+            case 'cleaning':
+                icon = <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />;
+                title = "Cleaning and Processing in Progress...";
+                color = "border-indigo-600 bg-indigo-800/50"; 
+                break;
+            case 'success':
+                icon = <CheckCircle className="w-8 h-8 text-emerald-400" />;
+                title = "Cleaning Completed Successfully!";
+                color = "border-emerald-600 bg-emerald-800/50";
+                break;
+            case 'error':
+                icon = <X className="w-8 h-8 text-red-400" />;
+                title = "An Error Occurred";
+                color = "border-red-600 bg-red-800/50";
+                break;
+            default:
+                icon = <FileText className="w-8 h-8 text-gray-500" />;
+                title = "Awaiting File";
+                color = "border-gray-600 bg-gray-800/50";
+        }
     }
 
     return (
@@ -147,6 +237,7 @@ const StatusCard = ({ status, responseMessage, errorDetails, copyToClipboard }) 
                             title={errorDetails}
                         >
                             {errorDetails}
+                            <ExternalLink className="inline w-3 h-3 ml-1" />
                         </a>
                         <div className="flex space-x-2 mt-2 sm:mt-0">
                             <button
@@ -175,23 +266,120 @@ const StatusCard = ({ status, responseMessage, errorDetails, copyToClipboard }) 
                     <p className="text-sm text-red-300 mt-1">Check the API URL and the format of the uploaded file.</p>
                 </div>
             )}
+            {isOverLimit && (
+                 <div className="mt-4 p-4 bg-gray-900 border border-yellow-600 rounded-xl shadow-inner">
+                    <p className="font-semibold text-yellow-400">Upgrade Required</p>
+                    <p className="text-sm text-gray-300 mt-1">You have used your {FREE_QUOTA_LIMIT} free cleaning sessions. Please upgrade to continue using DataWash Pro Max!</p>
+                </div>
+            )}
         </div>
     );
 };
 
 
 const App = () => {
+    // --- State ho an'ny DataWash ---
     const [file, setFile] = useState(null);
     const [status, setStatus] = useState('idle'); 
     const [responseMessage, setResponseMessage] = useState('Awaiting a CSV file to be uploaded.');
     const [errorDetails, setErrorDetails] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
-    const [isDragging, setIsDragging] = useState(false); // New state for drag-and-drop
+    const [isDragging, setIsDragging] = useState(false); 
     const [metrics, setMetrics] = useState(initialMetrics);
+    
+    // --- State ho an'ny Auth sy Quota ---
+    const [userId, setUserId] = useState(null);
+    const [isAuthReady, setIsAuthReady] = useState(false);
+    const [quota, setQuota] = useState({ used: 0, limit: FREE_QUOTA_LIMIT });
+    
     const fileInputRef = useRef(null);
 
-    // Automatic copy method
+    // --- Firebase Auth & Quota Logic ---
+
+    // 1. Authentication Setup
+    useEffect(() => {
+        if (!auth) {
+            console.error("Firebase Auth is not initialized.");
+            setIsAuthReady(true);
+            return;
+        }
+
+        const initialAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Firebase Authentication failed:", error);
+            }
+        };
+
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            if (user) {
+                setUserId(user.uid);
+                // Atombohy ny Quota listener rehefa avy fantatra ny UID
+                setupQuotaListener(user.uid); 
+            } else {
+                setUserId(null);
+            }
+            setIsAuthReady(true);
+        });
+
+        // Tsy maintsy alaina ny token raha mbola tsy misy ao
+        if (!auth.currentUser) {
+            initialAuth();
+        }
+
+        return () => unsubscribe();
+    }, []); // Mandeha indray mandeha ihany amin'ny fanombohana
+
+    // 2. Quota Listener Setup
+    const setupQuotaListener = useCallback((uid) => {
+        if (!db) return;
+
+        const quotaDocPath = QUOTA_COLLECTION_PATH(appId, uid);
+        const docRef = doc(db, quotaDocPath);
+
+        // Atombohy ny Quota Listener
+        const unsubscribeQuota = onSnapshot(docRef, async (docSnap) => {
+            if (docSnap.exists()) {
+                // Efa misy ny Quota, ampiasaina ny angona
+                setQuota(docSnap.data());
+            } else {
+                // Tsy mbola misy Quota, mamorona ny Quota FREE Tier vaovao
+                const newQuota = { used: 0, limit: FREE_QUOTA_LIMIT, level: 'free' };
+                await setDoc(docRef, newQuota);
+                setQuota(newQuota);
+            }
+        }, (error) => {
+            console.error("Error listening to quota:", error);
+        });
+
+        // Manakana ny listener rehefa tsy ilaina intsony (rehefa mi-logout)
+        return () => unsubscribeQuota();
+
+    }, [db, appId]); // Nampiana db sy appId ho dependencies
+
+    // --- Fampiasa Manampy (Utilities) ---
+
+    const handleSignOut = async () => {
+        if (auth) {
+            try {
+                await signOut(auth);
+                setUserId(null);
+                setQuota({ used: 0, limit: FREE_QUOTA_LIMIT });
+                // Mamerina ny mpampiasa manao anonymous login indray ho an'ny Canvas
+                await signInAnonymously(auth); 
+            } catch (error) {
+                console.error("Error signing out:", error);
+            }
+        }
+    };
+    
     const copyToClipboard = (text) => {
+        // ... (Remains the same as before) ...
         const textarea = document.createElement('textarea');
         textarea.value = text;
         document.body.appendChild(textarea);
@@ -206,24 +394,8 @@ const App = () => {
         document.body.removeChild(textarea);
     };
 
-    const handleFileChange = (event) => {
-        const selectedFile = event.target.files[0];
-        if (selectedFile && (selectedFile.type === 'text/csv' || selectedFile.name.toLowerCase().endsWith('.csv'))) {
-            setFile(selectedFile);
-            setResponseMessage(`File ${selectedFile.name} selected. Ready to upload.`);
-            setErrorDetails(null);
-            setStatus('idle');
-            // Reset metrics when new file is selected
-            setMetrics(initialMetrics);
-        } else {
-            setFile(null);
-            setResponseMessage('Please select a valid CSV file only.');
-            setStatus('error');
-        }
-    };
-    
-    // Simulate Metric Calculation (Since the backend doesn't return counts, we mock them)
     const calculateMockMetrics = (originalFileName) => {
+        // ... (Remains the same as before) ...
         const fakeOriginal = Math.floor(Math.random() * 1000) + 500;
         const fakeDuplicates = Math.floor(Math.random() * 10) + 1; 
         const fakeCleaned = fakeOriginal - fakeDuplicates;
@@ -237,8 +409,33 @@ const App = () => {
         });
     };
 
+
+    // --- File Handling & Upload Logic (UPDATED) ---
+
+    const handleFileChange = (event) => {
+        const selectedFile = event.target.files[0];
+        if (selectedFile && (selectedFile.type === 'text/csv' || selectedFile.name.toLowerCase().endsWith('.csv'))) {
+            setFile(selectedFile);
+            setResponseMessage(`File ${selectedFile.name} selected. Ready to upload.`);
+            setErrorDetails(null);
+            setStatus('idle');
+            setMetrics(initialMetrics);
+        } else {
+            setFile(null);
+            setResponseMessage('Please select a valid CSV file only.');
+            setStatus('error');
+        }
+    };
+    
     const handleUpload = async () => {
-        if (!file || isProcessing) return;
+        // 1. Fanamarinana ny Quota
+        if (quota.used >= quota.limit) {
+            setStatus('error');
+            setResponseMessage(`You have reached your Free Tier quota of ${quota.limit} cleanings.`);
+            return;
+        }
+
+        if (!file || isProcessing || !userId) return; // Mijanona raha tsy misy file na Auth
 
         const formData = new FormData();
         formData.append('csvFile', file); 
@@ -249,6 +446,10 @@ const App = () => {
         setErrorDetails(null);
 
         try {
+            // Mampiditra ny User ID ao amin'ny Header mba hanamarinana ny Backend
+            const headers = new Headers();
+            headers.append('X-User-ID', userId); 
+            
             let response = null;
             let attempts = 0;
             const maxAttempts = 3;
@@ -258,6 +459,7 @@ const App = () => {
                     response = await fetch(API_URL, {
                         method: 'POST',
                         body: formData,
+                        headers: headers, // Ampidirina ny User ID eto!
                     });
                     break;
                 } catch (e) {
@@ -275,7 +477,15 @@ const App = () => {
                 setStatus('success');
                 setResponseMessage('Cleaning successful! Download is ready.');
                 setErrorDetails(result.cleanedDataUrl); 
-                calculateMockMetrics(file.name); // Calculate metrics on success
+                calculateMockMetrics(file.name); 
+
+                // 2. Fampitomboana ny Quota rehefa nahomby (Update Firestore)
+                if (db) {
+                    const quotaDocPath = QUOTA_COLLECTION_PATH(appId, userId);
+                    const docRef = doc(db, quotaDocPath);
+                    await updateDoc(docRef, { used: quota.used + 1 });
+                }
+
             } else {
                 setStatus('error');
                 setResponseMessage(result.message || 'Error from the Server. The file might be empty or in the wrong format.');
@@ -290,7 +500,7 @@ const App = () => {
         }
     };
 
-    // Drag and Drop Handlers
+    // Drag and Drop Handlers (Remains the same)
     const handleDragOver = (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -316,7 +526,6 @@ const App = () => {
 
         const files = e.dataTransfer.files;
         if (files && files.length > 0) {
-            // Reusing existing logic to handle the file
             handleFileChange({ target: { files: [files[0]] } });
         }
     };
@@ -325,10 +534,14 @@ const App = () => {
     return (
         // Premium Dark Background with subtle gradient
         <div className="min-h-screen bg-gray-900 bg-gradient-to-br from-gray-900 to-indigo-950 p-4 sm:p-10 font-sans">
-            {/* Tailwind CSS import for single file */}
             <script src="https://cdn.tailwindcss.com"></script>
             <div className="max-w-7xl mx-auto">
-                <Header />
+                <Header 
+                    userId={userId} 
+                    handleSignOut={handleSignOut} 
+                    quota={quota} 
+                    isAuthReady={isAuthReady}
+                />
 
                 {/* Dashboard Grid Layout */}
                 <main className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -350,6 +563,7 @@ const App = () => {
                                 color="emerald"
                             />
                             <MetricCard 
+                                // Fanamorana: Nampiasaina ny Trash2 efa nampidirina
                                 icon={<Trash2 className="w-6 h-6" />}
                                 title="Duplicates Removed"
                                 value={metrics.duplicatesRemoved.toLocaleString()}
@@ -364,13 +578,14 @@ const App = () => {
                             />
                         </div>
                         
-                        {/* Status Card (moved to sidebar for better layout) */}
+                        {/* Status Card */}
                         <h2 className="text-xl font-bold text-indigo-400 mt-8 border-b border-indigo-700 pb-2">Current Status</h2>
                         <StatusCard 
                             status={status} 
                             responseMessage={responseMessage} 
                             errorDetails={errorDetails} 
                             copyToClipboard={copyToClipboard} 
+                            isOverLimit={quota.used >= quota.limit}
                         />
                     </div>
 
@@ -379,23 +594,23 @@ const App = () => {
                         
                         {/* 1. Upload Gateway (with Drag & Drop) */}
                         <div className="p-8 rounded-2xl shadow-2xl shadow-indigo-900/50 bg-gray-800/70 border border-gray-700 backdrop-blur-md">
-                            <h2 className="text-2xl font-bold text-white mb-6 border-b-2 border-indigo-600 pb-2">1. File Upload Gateway (Drag & Drop)</h2>
+                            <h2 className="text-2xl font-bold text-white mb-6 border-b-2 border-indigo-600 pb-2">1. File Upload Gateway (Secured)</h2>
 
                             <div 
-                                // Drag and Drop Handlers and styles
+                                // Disable upload area if quota is exceeded
                                 onDragOver={handleDragOver}
                                 onDragEnter={handleDragEnter}
                                 onDragLeave={handleDragLeave}
                                 onDrop={handleDrop}
-                                className={`border-4 border-dashed rounded-xl p-16 text-center cursor-pointer transition-all duration-300 
-                                    ${file ? 'border-emerald-500 bg-emerald-900/30' : 
-                                    (isDragging ? 'border-yellow-400 bg-yellow-900/40 scale-[1.01]' : 'border-indigo-500 hover:border-indigo-400 hover:bg-indigo-900/50')}`}
-                                onClick={() => !isProcessing && fileInputRef.current.click()}
-                                title="Click or drag your file here"
+                                className={`border-4 border-dashed rounded-xl p-16 text-center transition-all duration-300 
+                                    ${quota.used >= quota.limit ? 'border-yellow-600 bg-yellow-900/20 cursor-not-allowed' : (file ? 'border-emerald-500 bg-emerald-900/30' : 
+                                    (isDragging ? 'border-yellow-400 bg-yellow-900/40 scale-[1.01]' : 'border-indigo-500 hover:border-indigo-400 hover:bg-indigo-900/50 cursor-pointer'))}`}
+                                onClick={() => !isProcessing && quota.used < quota.limit && fileInputRef.current.click()}
+                                title={quota.used >= quota.limit ? "Quota Reached - Cannot upload" : "Click or drag your file here"}
                             >
-                                <Upload className={`w-16 h-16 mx-auto mb-4 transition duration-300 ${isDragging ? 'text-yellow-400' : 'text-indigo-400'}`} />
+                                <Upload className={`w-16 h-16 mx-auto mb-4 transition duration-300 ${quota.used >= quota.limit ? 'text-yellow-400' : (isDragging ? 'text-yellow-400' : 'text-indigo-400')}`} />
                                 <p className="text-xl font-semibold text-white">
-                                    {isDragging ? "Drop the CSV file here!" : (file ? `Selected File: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)` : "Click or drag your CSV file (.csv) here")}
+                                    {quota.used >= quota.limit ? "Quota Limit Reached. Upgrade required." : (isDragging ? "Drop the CSV file here!" : (file ? `Selected File: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)` : "Click or drag your CSV file (.csv) here"))}
                                 </p>
                                 <p className="text-sm text-gray-400 mt-1">Maximum file size: 50MB</p>
                                 <input 
@@ -410,10 +625,10 @@ const App = () => {
                             <div className="mt-8 flex justify-center space-x-4">
                                 <button
                                     onClick={handleUpload}
-                                    disabled={!file || isProcessing}
+                                    disabled={!file || isProcessing || quota.used >= quota.limit}
                                     className={`
                                         px-10 py-4 rounded-xl text-white font-bold text-lg transition-all duration-300 shadow-xl shadow-indigo-600/50 transform hover:scale-[1.03] active:scale-100
-                                        ${!file || isProcessing ? 'bg-gray-600 shadow-none cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500'}
+                                        ${!file || isProcessing || quota.used >= quota.limit ? 'bg-gray-600 shadow-none cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500'}
                                         flex items-center space-x-3
                                     `}
                                 >
@@ -422,7 +637,7 @@ const App = () => {
                                     ) : (
                                         <Zap className="w-6 h-6" />
                                     )}
-                                    <span>{isProcessing ? "Cleaning in Progress..." : "Start Pro Cleaning"}</span>
+                                    <span>{isProcessing ? "Cleaning in Progress..." : (quota.used >= quota.limit ? "Quota Reached" : "Start Pro Cleaning")}</span>
                                 </button>
                                 {file && !isProcessing && (
                                     <button
@@ -441,7 +656,7 @@ const App = () => {
                 </main>
 
                 <footer className="mt-16 text-center text-sm text-gray-400 p-6 border-t border-indigo-700">
-                    DataWash Pro Max | Built by Gemini | For professional data cleaning.
+                    DataWash Pro Max | Built by HERYDATA PRO | Free Tier Quota: {FREE_QUOTA_LIMIT} cleans.
                 </footer>
             </div>
         </div>
