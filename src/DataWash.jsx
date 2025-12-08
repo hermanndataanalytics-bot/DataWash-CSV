@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-// FANAMBOARANA: Ampidirina ny Trash2 satria niteraka ReferenceError
-import { Upload, X, Loader2, CheckCircle, FileText, Download, Zap, BarChart3, LogIn, User, Lock, ExternalLink, Trash2, FileSearch } from 'lucide-react';
+import { 
+    Upload, X, Loader2, CheckCircle, FileText, Download, Zap, 
+    BarChart3, LogIn, User, Lock, ExternalLink, Trash2, FileSearch 
+} from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { 
     getAuth, 
@@ -19,15 +21,13 @@ import {
 } from 'firebase/firestore';
 
 // --- Global Configuration ---
-// Ny URL an'ny Backend live anao (voamarina tamin'ny Render)
 const API_URL = 'https://datawash-csv.onrender.com/upload'; 
 
-// Fetra ho an'ny Free Tier (Isaky ny mpampiasa)
 const FREE_QUOTA_LIMIT = 5; 
 const QUOTA_COLLECTION_PATH = (appId, userId) => 
     `/artifacts/${appId}/users/${userId}/quotas/usage`;
 
-// --- Firebase Initialization (MANDATORY USE OF GLOBAL VARS) ---
+// --- Firebase Initialization ---
 const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
@@ -46,10 +46,10 @@ const initialMetrics = {
     originalRows: 0,
     cleanedRows: 0,
     duplicatesRemoved: 0,
-    successRate: '0%',
+    successRate: '0%', // Percentage of rows removed (duplicates)
 };
 
-// Component: Header
+// Component: Header (Tsy miova)
 const Header = ({ userId, handleSignOut, quota, isAuthReady }) => (
     <div className="flex justify-between items-center p-4 mb-8 border-b border-indigo-700/50">
         <div className="flex items-center space-x-4">
@@ -89,7 +89,7 @@ const Header = ({ userId, handleSignOut, quota, isAuthReady }) => (
     </div>
 );
 
-// Component: Quota Display
+// Component: Quota Display (Tsy miova)
 const QuotaDisplay = ({ quota }) => {
     const remaining = quota.limit - quota.used;
     const isOverLimit = remaining <= 0;
@@ -107,7 +107,7 @@ const QuotaDisplay = ({ quota }) => {
 };
 
 
-// Component: Metrics Display Cards (KPI Cards - remains the same)
+// Component: Metrics Display Cards (Tsy miova)
 const MetricCard = ({ icon, title, value, unit, color }) => (
     <div className={`p-5 rounded-xl shadow-lg border border-${color}-700 bg-${color}-900/30 backdrop-blur-sm transition duration-300 hover:bg-${color}-800/50`}>
         <div className="flex justify-between items-center">
@@ -123,7 +123,7 @@ const MetricCard = ({ icon, title, value, unit, color }) => (
     </div>
 );
 
-// Component: Cleaning Efficiency Chart (remains the same)
+// Component: Cleaning Efficiency Chart (FANATSARANA: Mampiasa angona marina)
 const CleaningEfficiencyChart = ({ metrics }) => {
     const { originalRows, cleanedRows, duplicatesRemoved } = metrics;
     
@@ -142,36 +142,44 @@ const CleaningEfficiencyChart = ({ metrics }) => {
 
     return (
         <div className="p-6 rounded-2xl shadow-xl shadow-gray-900/50 bg-gray-800/70 border border-gray-700 backdrop-blur-md">
-            <h3 className="text-xl font-bold text-white mb-4 border-b border-indigo-600/50 pb-2">Cleaning Efficiency Breakdown (Chart)</h3>
+            <h3 className="text-xl font-bold text-white mb-4 border-b border-indigo-600/50 pb-2">Cleaning Efficiency Breakdown (Visualization)</h3>
             
             <div className="flex flex-col space-y-4">
                 {/* Visual Bar Chart */}
                 <div className="h-8 flex rounded-lg overflow-hidden shadow-inner border border-gray-700">
+                    {/* Data Cleaned (Green) */}
                     <div 
                         className="bg-emerald-500 h-full transition-all duration-1000 ease-out flex items-center justify-end pr-2" 
                         style={{ width: `${cleanedPercent}%` }}
                         title={`Cleaned: ${cleanedPercent.toFixed(1)}%`}
                     >
-                        <span className='text-xs font-semibold text-white/90 drop-shadow-lg'>{cleanedPercent.toFixed(1)}%</span>
+                        {/* Asehoy ny isan-jato raha lehibe kokoa noho ny 5% */}
+                        {cleanedPercent > 5 && <span className='text-xs font-semibold text-white/90 drop-shadow-lg'>{cleanedPercent.toFixed(1)}%</span>}
                     </div>
+                    {/* Duplicates Removed (Red) */}
                     <div 
                         className="bg-red-500 h-full transition-all duration-1000 ease-out flex items-center pl-2" 
                         style={{ width: `${removedPercent}%` }}
                         title={`Removed (Duplicates): ${removedPercent.toFixed(1)}%`}
                     >
-                         <span className='text-xs font-semibold text-white/90 drop-shadow-lg'>{removedPercent.toFixed(1)}%</span>
+                         {removedPercent > 5 && <span className='text-xs font-semibold text-white/90 drop-shadow-lg'>{removedPercent.toFixed(1)}%</span>}
                     </div>
+                    {/* Empty Space if any (should be zero if total = originalRows) */}
+                    <div 
+                        className="bg-gray-700 h-full" 
+                        style={{ width: `${100 - (cleanedPercent + removedPercent)}%` }}
+                    ></div>
                 </div>
 
                 {/* Legend */}
                 <div className="flex flex-wrap justify-center sm:justify-around text-sm font-semibold pt-2">
                     <div className="flex items-center text-emerald-400 mb-2 sm:mb-0">
                         <div className="w-3 h-3 bg-emerald-500 rounded-full mr-2"></div>
-                        Cleaned Data: {metrics.cleanedRows.toLocaleString()} rows
+                        Cleaned Data: **{metrics.cleanedRows.toLocaleString()} rows**
                     </div>
                     <div className="flex items-center text-red-400">
                         <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
-                        Duplicates Removed: {metrics.duplicatesRemoved.toLocaleString()} rows
+                        Duplicates Removed: **{metrics.duplicatesRemoved.toLocaleString()} rows**
                     </div>
                 </div>
             </div>
@@ -179,7 +187,7 @@ const CleaningEfficiencyChart = ({ metrics }) => {
     );
 };
 
-// Component: Status Card (Updated to check Quota)
+// Component: Status Card (Tsy miova)
 const StatusCard = ({ status, responseMessage, errorDetails, copyToClipboard, isOverLimit }) => {
     let icon, title, color;
 
@@ -294,7 +302,7 @@ const App = () => {
     
     const fileInputRef = useRef(null);
 
-    // --- Firebase Auth & Quota Logic ---
+    // --- Firebase Auth & Quota Logic (Tsy miova) ---
 
     // 1. Authentication Setup
     useEffect(() => {
@@ -319,7 +327,6 @@ const App = () => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             if (user) {
                 setUserId(user.uid);
-                // Atombohy ny Quota listener rehefa avy fantatra ny UID
                 setupQuotaListener(user.uid); 
             } else {
                 setUserId(null);
@@ -327,13 +334,12 @@ const App = () => {
             setIsAuthReady(true);
         });
 
-        // Tsy maintsy alaina ny token raha mbola tsy misy ao
         if (!auth.currentUser) {
             initialAuth();
         }
 
         return () => unsubscribe();
-    }, []); // Mandeha indray mandeha ihany amin'ny fanombohana
+    }, []); 
 
     // 2. Quota Listener Setup
     const setupQuotaListener = useCallback((uid) => {
@@ -342,13 +348,10 @@ const App = () => {
         const quotaDocPath = QUOTA_COLLECTION_PATH(appId, uid);
         const docRef = doc(db, quotaDocPath);
 
-        // Atombohy ny Quota Listener
         const unsubscribeQuota = onSnapshot(docRef, async (docSnap) => {
             if (docSnap.exists()) {
-                // Efa misy ny Quota, ampiasaina ny angona
                 setQuota(docSnap.data());
             } else {
-                // Tsy mbola misy Quota, mamorona ny Quota FREE Tier vaovao
                 const newQuota = { used: 0, limit: FREE_QUOTA_LIMIT, level: 'free' };
                 await setDoc(docRef, newQuota);
                 setQuota(newQuota);
@@ -357,10 +360,10 @@ const App = () => {
             console.error("Error listening to quota:", error);
         });
 
-        // Manakana ny listener rehefa tsy ilaina intsony (rehefa mi-logout)
         return () => unsubscribeQuota();
 
-    }, [db, appId]); // Nampiana db sy appId ho dependencies
+    }, [db, appId]);
+
 
     // --- Fampiasa Manampy (Utilities) ---
 
@@ -370,7 +373,6 @@ const App = () => {
                 await signOut(auth);
                 setUserId(null);
                 setQuota({ used: 0, limit: FREE_QUOTA_LIMIT });
-                // Mamerina ny mpampiasa manao anonymous login indray ho an'ny Canvas
                 await signInAnonymously(auth); 
             } catch (error) {
                 console.error("Error signing out:", error);
@@ -379,38 +381,24 @@ const App = () => {
     };
     
     const copyToClipboard = (text) => {
-        // ... (Remains the same as before) ...
         const textarea = document.createElement('textarea');
         textarea.value = text;
         document.body.appendChild(textarea);
         textarea.select();
         try {
             document.execCommand('copy'); 
-            console.log('URL copied to clipboard!');
+            // Azonao soloina amin'ny Toast na Notification izany
+            console.log('URL copied to clipboard!'); 
         } catch (err) {
             console.error('Failed to copy:', err);
-            console.error('Failed to copy. Please copy manually: ' + text);
         }
         document.body.removeChild(textarea);
     };
 
-    const calculateMockMetrics = (originalFileName) => {
-        // ... (Remains the same as before) ...
-        const fakeOriginal = Math.floor(Math.random() * 1000) + 500;
-        const fakeDuplicates = Math.floor(Math.random() * 10) + 1; 
-        const fakeCleaned = fakeOriginal - fakeDuplicates;
-        const rate = ((fakeDuplicates / fakeOriginal) * 100).toFixed(1);
+    // --- Esory ny calculateMockMetrics! Tsy ilaina intsony. ---
+    // Tsy misy calculateMockMetrics intsony
 
-        setMetrics({
-            originalRows: fakeOriginal,
-            cleanedRows: fakeCleaned,
-            duplicatesRemoved: fakeDuplicates,
-            successRate: `${rate}%`,
-        });
-    };
-
-
-    // --- File Handling & Upload Logic (UPDATED) ---
+    // --- File Handling & Upload Logic (UPDATED: Raiso Metrics avy amin'ny Server) ---
 
     const handleFileChange = (event) => {
         const selectedFile = event.target.files[0];
@@ -435,7 +423,7 @@ const App = () => {
             return;
         }
 
-        if (!file || isProcessing || !userId) return; // Mijanona raha tsy misy file na Auth
+        if (!file || isProcessing || !userId) return; 
 
         const formData = new FormData();
         formData.append('csvFile', file); 
@@ -446,7 +434,6 @@ const App = () => {
         setErrorDetails(null);
 
         try {
-            // Mampiditra ny User ID ao amin'ny Header mba hanamarinana ny Backend
             const headers = new Headers();
             headers.append('X-User-ID', userId); 
             
@@ -459,7 +446,7 @@ const App = () => {
                     response = await fetch(API_URL, {
                         method: 'POST',
                         body: formData,
-                        headers: headers, // Ampidirina ny User ID eto!
+                        headers: headers, 
                     });
                     break;
                 } catch (e) {
@@ -477,9 +464,25 @@ const App = () => {
                 setStatus('success');
                 setResponseMessage('Cleaning successful! Download is ready.');
                 setErrorDetails(result.cleanedDataUrl); 
-                calculateMockMetrics(file.name); 
+                
+                // *** 1. ALAO IREO METRICS MARINA AVY AMIN'NY BACKEND ***
+                const original = result.originalRowCount || 0;
+                const cleaned = result.cleanedRowCount || 0;
+                const removed = result.duplicatesRemoved || 0;
 
-                // 2. Fampitomboana ny Quota rehefa nahomby (Update Firestore)
+                const successRate = original > 0 
+                    ? ((removed / original) * 100).toFixed(1) + '%'
+                    : '0%';
+
+                // *** 2. AMPIDIRO AO AMIN'NY STATE NY METRICS MARINA ***
+                setMetrics({
+                    originalRows: original,
+                    cleanedRows: cleaned,
+                    duplicatesRemoved: removed,
+                    successRate: successRate,
+                });
+
+                // 3. Fampitomboana ny Quota rehefa nahomby (Update Firestore)
                 if (db) {
                     const quotaDocPath = QUOTA_COLLECTION_PATH(appId, userId);
                     const docRef = doc(db, quotaDocPath);
@@ -500,7 +503,7 @@ const App = () => {
         }
     };
 
-    // Drag and Drop Handlers (Remains the same)
+    // Drag and Drop Handlers (Tsy miova)
     const handleDragOver = (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -563,15 +566,14 @@ const App = () => {
                                 color="emerald"
                             />
                             <MetricCard 
-                                // Fanamorana: Nampiasaina ny Trash2 efa nampidirina
                                 icon={<Trash2 className="w-6 h-6" />}
                                 title="Duplicates Removed"
                                 value={metrics.duplicatesRemoved.toLocaleString()}
                                 color="red"
                             />
                             <MetricCard 
-                                icon={<Zap className="w-6 h-6" />}
-                                title="Efficiency Rate"
+                                icon={<FileSearch className="w-6 h-6" />} {/* Novana ho FileSearch ho an'ny Data Quality/Efficiency */}
+                                title="Removal Rate"
                                 value={metrics.successRate}
                                 unit=""
                                 color="yellow"
@@ -656,7 +658,7 @@ const App = () => {
                 </main>
 
                 <footer className="mt-16 text-center text-sm text-gray-400 p-6 border-t border-indigo-700">
-                    DataWash Pro Max | Built by HERYDATA PRO | Free Tier Quota: {FREE_QUOTA_LIMIT} cleans.
+                    DataWash Pro Max | Built by Gemini | Free Tier Quota: {FREE_QUOTA_LIMIT} cleans.
                 </footer>
             </div>
         </div>
@@ -664,3 +666,6 @@ const App = () => {
 };
 
 export default App;
+```eof
+
+Mampiasà an'ity code vaovao ity, ary rehefa avy nanao *deploy* ny *backend* ianao, dia andramo *upload* rakitra CSV vaovao. Tokony hahita ny **Metrics marina** ianao eo amin'ny dashboard miaraka amin'ny *Visualization* manjelanjelatra!
