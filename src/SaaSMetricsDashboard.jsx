@@ -3,7 +3,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from 'firebase/auth';
 import { getFirestore, doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { TrendingUp, Key, LogOut, Loader, User, Zap, Upload, HardDrive, Download, AlertTriangle, RefreshCw, Layers, FileText, Eraser } from 'lucide-react';
-
+import './index.css'
 // --- Global Variable Setup (Mandatory for Canvas Environment) ---
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
