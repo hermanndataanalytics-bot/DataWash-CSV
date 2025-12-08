@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<<<<<<< HEAD
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DataWash Pro Max Dashboard</title>
+</head>
+<body>
+    <noscript>Mila velominao ny JavaScript mba hiasa ity fampiharana ity.</noscript>
+    <!-- Io div io no toerana hampiakaran'ny React ny fampiharana (Mandatory) -->
+    <div id="root"></div> 
+=======
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Premium DataWash & Analytics SaaS Dashboard</title>
+    <!--
+        Manome toerana ho an'ny CSS rehetra ilaina, ao anatin'izany ny Tailwind CSS.
+        Amin'ny fampiasana fitaovana toa an'i Vite, ity no toerana fanafarana ny main.css na style.css,
+        fa satria isika eto dia mihevitra fa efa voangona ny Tailwind, dia mamela azy ho fanafarana mahazatra.
+    -->
+    <link rel="stylesheet" href="./style.css" />
+    
+    <!-- Mampiasa ny font Inter, izay ampiasain'ny Tailwind matetika. -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    <style>
+        /* Fampiharana ny font Inter manerana ny pejy */
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f7f9fb; /* Lokon'ny aoriana maivana mifanaraka amin'ny dashboard */
+        }
+    </style>
+</head>
+<body>
+    <!-- 
+        Ity no singa "root" ilain'ny index.js. 
+        Mba hialana amin'ny Cumulative Layout Shift (CLS), dia apetraka ao anaty body.
+    -->
+    <div id="root">
+        <!-- Azo ampidirina eto ny loader fohy raha mbola misintona ny React -->
+        <div class="flex justify-center items-center h-screen text-gray-500">Loading Application...</div>
+    </div>
+    
+    <!-- 
+        Mampiditra ny script Javascript lehibe.
+        Ny 'type="module"' dia ilaina mba ahafahan'ny 'import' miasa ao amin'ny index.js sy SaaSMetricsDashboard.jsx.
+    -->
+    <script type="module" src="/index.js"></script>
+>>>>>>> 57208e1 (feat: Initial setup for React dashboard and Express server (Render readiness))
+</body>
+</html>

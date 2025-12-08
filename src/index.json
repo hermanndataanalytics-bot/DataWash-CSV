@@ -1,0 +1,24 @@
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './SaaSMetricsDashboard.jsx'; // Fanafarana ilay singa lehibe avy amin'ny SaaSMetricsDashboard.jsx
+
+// Ity no rakitra fototra ho an'ny fampandehanana ny fampiharana React.
+// Mampiasa ny React 18 API vaovao izy (createRoot).
+
+// Tadiavina ny singa HTML misy ny 'root' ID.
+const container = document.getElementById('root');
+
+// Raha hita ny container, dia ampiasaina ny createRoot hamoronana ny fototra React.
+if (container) {
+    const root = createRoot(container);
+
+    // Anehoana ny singa App (ilay dashboard) ao anatin'ny root.
+    root.render(
+        <React.StrictMode>
+            <App />
+        </React.StrictMode>
+    );
+} else {
+    // Fampitandremana raha toa ka tsy hita ny singa 'root'.
+    console.error("Tsy hita ny singa 'root' ao amin'ny pejy HTML. Ilaina izany mba hampandehanana ny React.");
+}
