@@ -9,7 +9,8 @@
     "lucide-react": "0.399.0",
     "tailwindcss": "3.4.4",
     "autoprefixer": "10.4.19",
-    "postcss": "8.4.39"
+    "postcss": "8.4.39",
+    "core-js": "3.37.1"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -32,3 +33,4 @@
   "devDependencies": {
     "react-scripts": "5.0.1"
   }
+
