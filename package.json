@@ -1,34 +1,26 @@
 {
-  {
- {
   "name": "datawash-csv-frontend",
   "version": "1.0.0",
   "private": true,
-<<<<<<< HEAD
   "homepage": ".",
-  "dependencies": {
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
-    "lucide-react": "0.399.0",
-    "tailwindcss": "3.4.4",
-    "autoprefixer": "10.4.19",
-    "postcss": "8.4.39",
-    "core-js": "3.37.1"
-  },
-=======
   "description": "Premium SaaS dashboard for AI-powered CSV data cleaning and analytics.",
   "type": "module",
->>>>>>> 57208e1 (feat: Initial setup for React dashboard and Express server (Render readiness))
   "scripts": {
     "start": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "serve-render": "node server.js"
   },
   "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "lucide-react": "^0.399.0",
+    "tailwindcss": "^3.4.4",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.39",
+    "core-js": "^3.37.1",
     "firebase": "^11.6.1",
-    "lucide-react": "^0.300.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "express": "^4.18.2"
   },
   "devDependencies": {
     "@types/react": "^18.2.45",
@@ -39,4 +31,4 @@
     "tailwindcss": "^3.4.1",
     "vite": "^5.0.11"
   }
- 57208e1 (feat: Initial setup for React dashboard and Express server (Render readiness))
+}
