@@ -5,27 +5,23 @@ import { fileURLToPath } from 'url';
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Famaritana ny __dirname ho an'ny ES Modules
+// ES module dirname fix
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ZAVA-DEHIBE 1: Manondro ny 'dist' ho toy ny lahatahiry static file
-const distPath = path.join(__dirname, 'dist');
-app.use(express.static(distPath)); // Express dia tokony hikarakara ny MIME type marina
+// Serve frontend build
+const distPath = path.join(__dirname, "dist");
+app.use(express.static(distPath));
 
-// ZAVA-DEHIBE 2: Manomboka amin'ny URL rehetra, dia alefa any amin'ny index.html ao anaty dist
-app.get('*', (req, res) => {
-    // Tsy maintsy atao antoka fa misy ilay index.html ao anaty dist
-    res.sendFile(path.join(distPath, 'index.html'));
+// FIX CSS MIME TYPE
+app.use("/style.css", (req, res) => {
+  res.setHeader("Content-Type", "text/css");
+  res.sendFile(path.join(__dirname, "style.css"));
 });
 
-app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+// React routes fallback
+app.get("*", (req, res) => {
+  res.sendFile(path.join(distPath, "index.html"));
 });
-app.use(express.static(path.join(__dirname, "dist"), {
-  setHeaders: (res, filePath) => {
-    if (filePath.endsWith(".css")) {
-      res.set("Content-Type", "text/css");
-    }
-  }
-}));
+
+app.listen(port, () => console.log(`🚀 Server running on port ${port}`));
