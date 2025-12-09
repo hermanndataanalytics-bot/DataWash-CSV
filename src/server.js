@@ -5,23 +5,16 @@ import { fileURLToPath } from 'url';
 const app = express();
 const port = process.env.PORT || 3000;
 
-// ES module dirname fix
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Serve frontend build
-const distPath = path.join(__dirname, "dist");
-app.use(express.static(distPath));
+// Serve static folders
+app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "dist")));
 
-// FIX CSS MIME TYPE
-app.use("/style.css", (req, res) => {
-  res.setHeader("Content-Type", "text/css");
-  res.sendFile(path.join(__dirname, "style.css"));
-});
-
-// React routes fallback
-app.get("*", (req, res) => {
-  res.sendFile(path.join(distPath, "index.html"));
+// Redirect all routes → dist/index.html
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 app.listen(port, () => console.log(`🚀 Server running on port ${port}`));

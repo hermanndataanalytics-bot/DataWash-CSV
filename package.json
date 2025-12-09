@@ -12,15 +12,15 @@
     "serve-render": "node server.js"
   },
   "dependencies": {
+    "autoprefixer": "^10.4.19",
+    "core-js": "^3.37.1",
+    "express": "^4.18.2",
+    "firebase": "^11.6.1",
+    "lucide-react": "^0.399.0",
+    "postcss": "^8.4.39",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "lucide-react": "^0.399.0",
-    "tailwindcss": "^3.4.4",
-    "autoprefixer": "^10.4.19",
-    "postcss": "^8.4.39",
-    "core-js": "^3.37.1",
-    "firebase": "^11.6.1",
-    "express": "^4.18.2"
+    "tailwindcss": "^3.4.4"
   },
   "devDependencies": {
     "@types/react": "^18.2.45",
@@ -29,6 +29,13 @@
     "autoprefixer": "^10.4.17",
     "postcss": "^8.4.33",
     "tailwindcss": "^3.4.1",
-    "vite": "^5.0.11"
+    "vite": "^5.4.21"
+  }
+}{
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   }
 }
+
